@@ -1,5 +1,5 @@
 chimera-supervisor plugin
-=======================
+=========================
 
 This is a plugin for the chimera observatory control system https://github.com/astroufsc/chimera. It provides a
 "observatory supervisor" controller. A supervisor is responsible for autonomously controlling the observatory. Its tasks
@@ -57,7 +57,7 @@ Here goes an example of the configuration to be added on ``chimera.config`` file
 
 
 Supervisor Configuration Example
----------------------
+--------------------------------
 
 This is how you setup an action. Drop this to an yaml file and load it with the chimera-supervisor script.
 
