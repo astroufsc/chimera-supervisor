@@ -204,7 +204,7 @@ class Higher(BaseScheduleAlgorith):
                 # Since this is the highest at this time, doesn't make
                 # sense to iterate over it
                 if start_airmass > targets[:][radecPos[stg]][1].maxairmass or \
-                                start_airmass > targets[:][radecPos[stg]][1].maxairmass or airmass < 0.:
+                                end_airmass > targets[:][radecPos[stg]][1].maxairmass or airmass < 0. or start_alt < 0.:
                     log.info('Object too low in the sky, (Alt.=%6.2f) airmass = %5.2f/%5.2f/%5.2f (max = %5.2f)... '
                              'Skipping this slot..' % (alt[stg], start_airmass, airmass, end_airmass,
                                                      targets[:][radecPos[stg]][1].maxairmass))
