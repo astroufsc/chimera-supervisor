@@ -480,9 +480,11 @@ class RobObs(ChimeraCLI):
                             position = Position.fromAltAz(actconfig['alt'], actconfig['az'])
                             # self.out('Coords: %s' % position)
                             act.targetAltAz = position
-                        else:
+                        elif 'name' in actconfig.keys():
                             # self.out('Target name: %s' % actconfig['name'])
                             act.targetName = actconfig['name']
+                        else:
+                            act.targetRaDec = Position.fromRaDec(target[0].targetRa, target[0].targetDec, 'J2000')
 
                     else:
                         for key in actconfig.keys():
@@ -518,18 +520,19 @@ class RobObs(ChimeraCLI):
                     if 'ra' in actconfig.keys() and 'dec' in actconfig.keys():
                         epoch = 'J2000' if 'epoch' not in actconfig.keys() else actconfig['epoch']
                         position = Position.fromRaDec(actconfig['ra'], actconfig['dec'], epoch)
-                        # self.out('Coords: %s' % position)
+                        self.out('Coords: %s' % position)
                         act.targetRaDec = position
                         # act = Point(targetRaDec=position)
                     elif 'alt' in actconfig.keys() and 'az' in actconfig.keys():
                         position = Position.fromAltAz(actconfig['alt'], actconfig['az'])
-                        # self.out('Coords: %s' % position)
+                        self.out('Coords: %s' % position)
                         act.targetAltAz = position
                     elif 'name' in actconfig:
                         self.out('Target name: %s' % actconfig['name'])
                         act.targetName = actconfig['name']
                     elif 'offset' not in actconfig:
-                        self.exit('[%s] No target to point to or offset to perform!' % red('ERROR'))
+                        self.out('Pointing to target again!')
+                        act.targetRaDec = Position.fromRaDec(target[0].targetRa, target[0].targetDec, 'J2000')
 
                     if 'offset' in actconfig:
                         if 'north' in actconfig['offset']:
