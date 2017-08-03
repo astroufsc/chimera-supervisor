@@ -102,6 +102,7 @@ class Timed(BaseScheduleAlgorith):
 
         try:
             prog = session.merge(program[0])
+            prog.finished = True
             block = session.merge(program[2])
             block.observed = True
             if not soft:

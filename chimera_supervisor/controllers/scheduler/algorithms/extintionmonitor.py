@@ -531,6 +531,7 @@ class ExtintionMonitor(BaseScheduleAlgorith):
 
         session = Session()
         prog = session.merge(program[0])
+        prog.finished = True
         obsblock = session.merge(program[2])
         target = session.merge(program[3])
         extmoni_info = session.query(ExtMoniDB).filter(ExtMoniDB.pid == prog.pid,

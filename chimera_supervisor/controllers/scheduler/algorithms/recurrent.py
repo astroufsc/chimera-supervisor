@@ -110,6 +110,8 @@ class Recurrent(BaseScheduleAlgorith):
         obstime = datetimeFromJD(time+2400000.5) #site.ut().replace(tzinfo=None) # get time and function entry
 
         session = Session()
+        prog = session.merge(program[0])
+        prog.finished = True
         obsblock = session.merge(program[2])
         obsblock.observed = True
 

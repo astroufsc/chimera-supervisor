@@ -262,6 +262,8 @@ class TimeSequence(BaseScheduleAlgorith):
         :return:
         '''
         session = Session()
+        prog = session.merge(program[0])
+        prog.finished = True
 
         try:
             block = session.merge(program[2])

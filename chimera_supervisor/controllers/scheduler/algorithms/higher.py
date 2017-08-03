@@ -315,6 +315,8 @@ class Higher(BaseScheduleAlgorith):
         :return:
         '''
         session = Session()
+        prog = session.merge(program[0])
+        prog.finished = True
         obsblock = session.merge(program[2])
         obsblock.observed = True
         if not soft:
