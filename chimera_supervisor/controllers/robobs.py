@@ -496,14 +496,14 @@ class RobObs(ChimeraObject):
                     if act.__tablename__ == 'action_expose':
                         dT+=act.exptime*act.frames
 
-                if not sched.timed_constraint() and program.slewAt > nowmjd:
+                if not sched.timed_constraint() and program[0].slewAt > nowmjd:
                     self._debuglog.debug('Checking if program can be observed earlier...')
                     # Check if program can be observed earlier, in case slewTime larger than mjd
-                    for dt in np.linspace(nowmjd, program.slewAt):
-                        if self.checkConditions(program, nowmjd+dt, dT):
-                            self._debuglog.debug('Replacing program slewAt %.2f -> %.2f' % (program.slewAt,
+                    for dt in np.linspace(nowmjd, program[0].slewAt):
+                        if self.checkConditions(program[0], nowmjd+dt, dT):
+                            self._debuglog.debug('Replacing program slewAt %.2f -> %.2f' % (program[0].slewAt,
                                                                                             nowmjd+dt))
-                            program.slewAt = nowmjd+dt
+                            program[0].slewAt = nowmjd+dt
 
                 session.commit()
                 return program,dT
