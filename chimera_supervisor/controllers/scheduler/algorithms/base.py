@@ -107,6 +107,9 @@ class BaseScheduleAlgorith():
     def model():
         pass
 
+    @staticmethod
+    def timed_constraint():
+        return True
 
 def Airmass(alt):
 

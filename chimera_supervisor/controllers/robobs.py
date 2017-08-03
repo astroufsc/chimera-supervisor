@@ -476,10 +476,10 @@ class RobObs(ChimeraObject):
         schedAlgList = np.array([t[1].schedalgorith for t in programs])
         unique_shed_algorithm_list = np.unique(schedAlgList)
 
-        mjd = self.getSite().MJD()
-        dt = np.zeros(programs.count())
-
-        prog = []
+        # mjd = self.getSite().MJD()
+        # dt = np.zeros(programs.count())
+        #
+        # prog = []
         for sAL in unique_shed_algorithm_list:
 
             # nquery = programs.filter(BlockPar.schedalgorith == sAL)
@@ -495,8 +495,19 @@ class RobObs(ChimeraObject):
                 for ii,act in enumerate(program[2].actions):
                     if act.__tablename__ == 'action_expose':
                         dT+=act.exptime*act.frames
+
+                if not sched.timed_constraint() and program.slewAt > nowmjd:
+                    self._debuglog.debug('Checking if program can be observed earlier...')
+                    # Check if program can be observed earlier, in case slewTime larger than mjd
+                    for dt in np.linspace(nowmjd, program.slewAt):
+                        if self.checkConditions(program, nowmjd+dt, dT):
+                            self._debuglog.debug('Replacing program slewAt %.2f -> %.2f' % (program.slewAt,
+                                                                                            nowmjd+dt))
+                            program.slewAt = nowmjd+dt
+
                 session.commit()
                 return program,dT
+
 
         self.log.warning('No program found...')
         session.commit()

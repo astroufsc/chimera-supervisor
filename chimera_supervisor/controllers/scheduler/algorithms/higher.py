@@ -324,3 +324,6 @@ class Higher(BaseScheduleAlgorith):
             obsblock.lastObservation = site.ut().replace(tzinfo=None)
         session.commit()
 
+    @staticmethod
+    def timed_constraint():
+        return False
