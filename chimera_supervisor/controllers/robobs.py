@@ -500,7 +500,7 @@ class RobObs(ChimeraObject):
                     self._debuglog.debug('Checking if program can be observed earlier...')
                     # Check if program can be observed earlier, in case slewTime larger than mjd
                     for dt in np.linspace(nowmjd, program[0].slewAt):
-                        if self.checkConditions(program[0], nowmjd+dt, dT):
+                        if self.checkConditions(program, nowmjd+dt, dT):
                             self._debuglog.debug('Replacing program slewAt %.2f -> %.2f' % (program[0].slewAt,
                                                                                             nowmjd+dt))
                             program[0].slewAt = nowmjd+dt
