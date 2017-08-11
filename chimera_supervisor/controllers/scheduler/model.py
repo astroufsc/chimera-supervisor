@@ -60,7 +60,7 @@ class ExtMoniDB(Base):
 
     nairmass = Column(Integer)
 
-    pid = Column(String, ForeignKey("projects.pid"))
+    pid = Column(String(length=65), ForeignKey("projects.pid"))
     tid = Column(Integer, ForeignKey('targets.id'))
 
     observed_am   = relation("ObservedAM", backref=backref("extmonidb", order_by="ObservedAM.id"),
@@ -96,7 +96,7 @@ class TimedDB(Base):
 
     id = Column(Integer, primary_key=True)
 
-    pid = Column(String, ForeignKey("projects.pid"))
+    pid = Column(String(length=65), ForeignKey("projects.pid"))
     blockid = Column(Integer, ForeignKey("obsblock.id"))
     tid = Column(Integer, ForeignKey('targets.id'))
 
@@ -124,7 +124,7 @@ class RecurrentDB(Base):
 
     id = Column(Integer, primary_key=True)
 
-    pid = Column(String, ForeignKey("projects.pid"))
+    pid = Column(String(length=65), ForeignKey("projects.pid"))
     blockid = Column(Integer, ForeignKey("obsblock.id"))
     tid = Column(Integer, ForeignKey('targets.id'))
 
@@ -139,8 +139,8 @@ class Targets(Base):
     __tablename__ = "targets"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, default="Program")
-    type = Column(String, default="OBJECT")
+    name = Column(String(length=65), default="Program")
+    type = Column(String(length=65), default="OBJECT")
     lastObservation = Column(DateTime, default=None)
     observed = Column(Boolean, default=False)
     scheduled = Column(Boolean, default=False)
@@ -149,8 +149,8 @@ class Targets(Base):
     targetEpoch = Column(Float, default=2000.)
     targetAH = Column(Float, default=0.)
     targetMag = Column(Float, default=0.0)
-    magFilter = Column(String, default=None)
-    link = Column(String, default=None)
+    magFilter = Column(String(length=65), default=None)
+    link = Column(String(length=65), default=None)
 
     def __str__(self):
         raDec = Position.fromRaDec(self.targetRa, self.targetDec, 'J2000')
@@ -179,7 +179,7 @@ class BlockPar(Base):
     __tablename__ = "blockpar"
     id = Column(Integer, primary_key=True)
     bid = Column(Integer)
-    pid = Column(String, default='')
+    pid = Column(String(length=65), default='')
 
     maxairmass = Column(Float, default=2.5)
     minairmass = Column(Float, default=-1.0)
@@ -203,7 +203,7 @@ class ObsBlock(Base):
     objid = Column(Integer, ForeignKey("targets.id"))
     blockid = Column(Integer)
     bparid = Column(Integer, ForeignKey("blockpar.bid"))
-    pid = Column(String, ForeignKey("projects.pid"))
+    pid = Column(String(length=65), ForeignKey("projects.pid"))
     observed = Column(Boolean, default=False)
     completed= Column(Boolean, default=False)
     lastObservation = Column(DateTime, default=None)
@@ -232,10 +232,10 @@ class Projects(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True)
-    pid = Column(String, default="PID")
-    pi = Column(String, default="Anonymous Investigator")
+    pid = Column(String(length=65), default="PID")
+    pi = Column(String(length=65), default="Anonymous Investigator")
     abstract = Column(Text, default="")
-    url = Column(String, default="")
+    url = Column(String(length=65), default="")
     priority = Column(Integer, default=0)
 
     def __str__(self):
@@ -251,8 +251,8 @@ class Program(Base):
 
     id = Column(Integer, primary_key=True)
     tid = Column(Integer, ForeignKey('targets.id'))
-    name = Column(String, ForeignKey("targets.name"))
-    pi = Column(String, default="Anonymous Investigator")
+    name = Column(String(length=65), ForeignKey("targets.name"))
+    pi = Column(String(length=65), default="Anonymous Investigator")
 
     priority = Column(Integer, default=0)
 
@@ -263,7 +263,7 @@ class Program(Base):
 
     # Extra information not present in standard chimera database schema,
     # required to link observing program with observing block
-    pid = Column(String, ForeignKey("projects.pid"))  # Project ID
+    pid = Column(String(length=65), ForeignKey("projects.pid"))  # Project ID
     obsblock_id = Column(Integer, ForeignKey("obsblock.id"))  # Block ID
     blockpar_id = Column(Integer, ForeignKey("blockpar.id"))  # BlockPar ID
 
@@ -303,9 +303,9 @@ class ObservingLog(Base):
     id = Column(Integer, primary_key=True)
     time = Column(DateTime, default=dt.datetime.today())
     tid = Column(Integer, ForeignKey('targets.id'))
-    name = Column(String, ForeignKey("targets.name"))
+    name = Column(String(length=65), ForeignKey("targets.name"))
     priority = Column(Integer, ForeignKey("program.priority"),default=-1)
-    action = Column(String)
+    action = Column(String(length=65))
 
     def __str__(self):
         return '%s [%s] P%s Action: %s' % ( self.time,
@@ -331,10 +331,10 @@ class AutoFocus(Action):
     start   = Column(Integer, default=0)
     end     = Column(Integer, default=1)
     step    = Column(Integer, default=1)
-    filter  = Column(String, default=None)
+    filter  = Column(String(length=65), default=None)
     exptime = Column(Float, default=1.0)
-    binning = Column(String, default=None)
-    window  = Column(String, default=None)
+    binning = Column(String(length=65), default=None)
+    window  = Column(String(length=65), default=None)
 
     def __str__ (self):
         return "autofocus: start=%d end=%d step=%d exptime=%d" % (self.start, self.end, self.step, self.exptime)
@@ -358,7 +358,7 @@ class AutoFlat(Action):
     __mapper_args__ = {'polymorphic_identity': 'AutoFlats'}
 
     id     = Column(Integer, ForeignKey('action.id'), primary_key=True)
-    filter  = Column(String, default=None)
+    filter  = Column(String(length=65), default=None)
     frames     = Column(Integer, default=1)
 
     @staticmethod
@@ -403,7 +403,7 @@ class Point(Action):
     targetAltAz = Column(PickleType, default=None)
     offsetNS = Column(PickleType, default=None) # offset North (>0)/South (<0)
     offsetEW = Column(PickleType, default=None) # offset West (>0)/East (<0)
-    targetName  = Column(String, default=None)
+    targetName  = Column(String(length=65), default=None)
 
     @staticmethod
     def chimeraAction(self):
@@ -451,7 +451,7 @@ class Expose(Action):
     __mapper_args__ = {'polymorphic_identity': 'Expose'}
 
     id         = Column(Integer, ForeignKey('action.id'), primary_key=True)
-    filter     = Column(String, default=None)
+    filter     = Column(String(length=65), default=None)
     frames     = Column(Integer, default=1)
 
     exptime    = Column(Integer, default=5)
@@ -459,11 +459,11 @@ class Expose(Action):
     binning    = Column(Integer, default=None)
     window     = Column(Float, default=None)
 
-    shutter    = Column(String, default="OPEN")
+    shutter    = Column(String(length=65), default="OPEN")
 
-    imageType  = Column(String, default="")
-    filename   = Column(String, default="$DATE-$TIME")
-    objectName = Column(String, default="")
+    imageType  = Column(String(length=65), default="")
+    filename   = Column(String(length=65), default="$DATE-$TIME")
+    objectName = Column(String(length=65), default="")
 
     def __str__ (self):
         return "expose: exptime=%d frames=%d type=%s" % (self.exptime, self.frames, self.imageType)
