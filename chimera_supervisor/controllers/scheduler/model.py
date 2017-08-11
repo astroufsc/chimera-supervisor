@@ -1,4 +1,6 @@
-from chimera_supervisor.core.constants import DEFAULT_ROBOBS_DATABASE
+import os
+import yaml
+from chimera_supervisor.core.constants import DEFAULT_ROBOBS_DATABASE, DEFAULT_ROBOBS_DATABASE_CONFIG
 
 from sqlalchemy import (Column, String, Integer, DateTime, Boolean, ForeignKey,
                         Float, PickleType, MetaData, Text, create_engine)
@@ -16,7 +18,32 @@ from chimera.util.position import Position
 
 import logging as log
 
-engine = create_engine('sqlite:///%s' % DEFAULT_ROBOBS_DATABASE, echo=False)
+# Check if a database configuration file exists. If yes, read configuration from it
+engine = None
+if os.path.exists(DEFAULT_ROBOBS_DATABASE_CONFIG):
+    with open(DEFAULT_ROBOBS_DATABASE_CONFIG, 'r') as stream:
+        try:
+            database_config = yaml.load(stream)
+            engine = create_engine(database_config['database'], echo=False)
+        except yaml.YAMLError as exc:
+            engine = None
+            log.error('Could not read robobs configuration file %s, falling back to default sqlite database.' %
+                      DEFAULT_ROBOBS_DATABASE)
+            pass
+        except Exception, e:
+            engine = None
+            log.exception(e)
+            if 'database' in database_config:
+                log.error('Could not configure database %s. Falling back to default sqlite database.' %
+                          database_config['database'])
+            else:
+                log.error('Could not configure database, falling back to default sqlite database.')
+            pass
+else:
+    log.debug('No database configuration file for robobs. Using default sqlite database.')
+
+if engine is None:
+    engine = create_engine('sqlite:///%s' % DEFAULT_ROBOBS_DATABASE, echo=False)
 # log.debug('-- engine created with sqlite:///%s' % DEFAULT_PROGRAM_DATABASE)
 metaData = MetaData()
 metaData.bind = engine
