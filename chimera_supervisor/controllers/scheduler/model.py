@@ -135,67 +135,6 @@ class RecurrentDB(Base):
     def __str__(self):
         return '[Recurrent:%s] visits: %i lastVisit: %s]' % (self.pid, self.visits, self.lastVisit)
 
-class Targets(Base):
-    __tablename__ = "targets"
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(length=65), default="Program")
-    type = Column(String(length=65), default="OBJECT")
-    lastObservation = Column(DateTime, default=None)
-    observed = Column(Boolean, default=False)
-    scheduled = Column(Boolean, default=False)
-    targetRa = Column(Float, default=0.0)
-    targetDec = Column(Float, default=0.0)
-    targetEpoch = Column(Float, default=2000.)
-    targetAH = Column(Float, default=0.)
-    targetMag = Column(Float, default=0.0)
-    magFilter = Column(String(length=65), default=None)
-    link = Column(String(length=65), default=None)
-
-    def __str__(self):
-        raDec = Position.fromRaDec(self.targetRa, self.targetDec, 'J2000')
-
-        if self.observed:
-            msg = "#[id: %5d] [name: %15s %s (ah: %.2f)] [type: %s] #LastObverved@: %s"
-            return msg % (self.id, self.name, raDec, self.targetAH,
-                          self.type, self.lastObservation)
-        else:
-            msg = "#[id: %5d] [name: %15s %s (ah: %.2f)] [type: %s] #NeverObserved"
-            return msg % (self.id, self.name, raDec, self.targetAH,
-                          self.type,)
-    @hybrid_property
-    def lst(self):
-        return self.targetRa + self.targetAH
-
-    @lst.setter
-    def lst(self, lmst):
-        ah = lmst - self.targetRa
-        if ah > 12.:
-            ah -= 24.
-        self.targetAH = ah
-        # print lmst, self.targetRa, self.targetAH,type(lmst)
-
-class BlockPar(Base):
-    __tablename__ = "blockpar"
-    id = Column(Integer, primary_key=True)
-    bid = Column(Integer)
-    pid = Column(String(length=65), default='')
-
-    maxairmass = Column(Float, default=2.5)
-    minairmass = Column(Float, default=-1.0)
-    maxmoonBright = Column(Float, default=100.)  # percent
-    minmoonBright = Column(Float, default=0.)  # percent
-    minmoonDist = Column(Float, default=-1.)  # in degrees
-    maxseeing = Column(Float, default=2.0)  # seing
-    cloudcover = Column(Integer, default=0)  # must be defined by user
-    schedalgorith = Column(Integer, default=0)  # scheduling algorith
-    applyextcorr = Column(Boolean, default=False)
-
-    def __str__(self):
-        msg = "#[id: %4i][bid: %4i][PID: %10s][airmass: %5.2f][seeing: %5.2f][cloud: %2i][schedAlgorith: %2i]"
-        return msg % (self.id, self.bid, self.pid, self.maxairmass, self.maxseeing,
-                      self.cloudcover, self.schedalgorith)
-
 
 class ObsBlock(Base):
     __tablename__ = "obsblock"
@@ -227,6 +166,28 @@ class ObsBlock(Base):
                                                                                 self.objid,
                                                                                 "| status: scheduled" if self.scheduled else "",
                                                                                 len(self.actions))
+
+class BlockPar(Base):
+    __tablename__ = "blockpar"
+    id = Column(Integer, primary_key=True)
+    bid = Column(Integer)
+    pid = Column(String(length=65), default='')
+
+    maxairmass = Column(Float, default=2.5)
+    minairmass = Column(Float, default=-1.0)
+    maxmoonBright = Column(Float, default=100.)  # percent
+    minmoonBright = Column(Float, default=0.)  # percent
+    minmoonDist = Column(Float, default=-1.)  # in degrees
+    maxseeing = Column(Float, default=2.0)  # seing
+    cloudcover = Column(Integer, default=0)  # must be defined by user
+    schedalgorith = Column(Integer, default=0)  # scheduling algorith
+    applyextcorr = Column(Boolean, default=False)
+
+    def __str__(self):
+        msg = "#[id: %4i][bid: %4i][PID: %10s][airmass: %5.2f][seeing: %5.2f][cloud: %2i][schedAlgorith: %2i]"
+        return msg % (self.id, self.bid, self.pid, self.maxairmass, self.maxseeing,
+                      self.cloudcover, self.schedalgorith)
+
 
 class Projects(Base):
     __tablename__ = "projects"
@@ -312,6 +273,46 @@ class ObservingLog(Base):
                                               self.name,
                                               self.priority,
                                               self.action)
+
+class Targets(Base):
+    __tablename__ = "targets"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(length=65), default="Program")
+    type = Column(String(length=65), default="OBJECT")
+    lastObservation = Column(DateTime, default=None)
+    observed = Column(Boolean, default=False)
+    scheduled = Column(Boolean, default=False)
+    targetRa = Column(Float, default=0.0)
+    targetDec = Column(Float, default=0.0)
+    targetEpoch = Column(Float, default=2000.)
+    targetAH = Column(Float, default=0.)
+    targetMag = Column(Float, default=0.0)
+    magFilter = Column(String(length=65), default=None)
+    link = Column(String(length=65), default=None)
+
+    def __str__(self):
+        raDec = Position.fromRaDec(self.targetRa, self.targetDec, 'J2000')
+
+        if self.observed:
+            msg = "#[id: %5d] [name: %15s %s (ah: %.2f)] [type: %s] #LastObverved@: %s"
+            return msg % (self.id, self.name, raDec, self.targetAH,
+                          self.type, self.lastObservation)
+        else:
+            msg = "#[id: %5d] [name: %15s %s (ah: %.2f)] [type: %s] #NeverObserved"
+            return msg % (self.id, self.name, raDec, self.targetAH,
+                          self.type,)
+    @hybrid_property
+    def lst(self):
+        return self.targetRa + self.targetAH
+
+    @lst.setter
+    def lst(self, lmst):
+        ah = lmst - self.targetRa
+        if ah > 12.:
+            ah -= 24.
+        self.targetAH = ah
+        # print lmst, self.targetRa, self.targetAH,type(lmst)
 
 class Action(Base):
 

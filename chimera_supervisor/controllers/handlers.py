@@ -284,7 +284,7 @@ class DewPointHandler(CheckHandler):
 
         ret = check.dewpoint > weatherstation.dew_point()
         msg = "Dew point OK" if not ret else "Dew point lower than specified threshold"
-        return ret, msg
+        return bool(ret), msg
 
     @staticmethod
     def log(check):
@@ -395,7 +395,7 @@ class DewHandler(CheckHandler):
                 pass
 
         if (temperature is None) or (dewpoint is None):
-            return check.mode == 0, "No valid weather station data available!"
+            return bool(check.mode == 0), "No valid weather station data available!"
 
         tempdiff = ( temperature.value - dewpoint.value )
 
@@ -406,7 +406,7 @@ class DewHandler(CheckHandler):
                 else "Dew point difference lower than specified threshold (%.2f/%.2f)"%(tempdiff,
                                         check.tempdiff)
             check.time = site.ut().replace(tzinfo=None)
-            return ret, msg
+            return bool(ret), msg
         elif check.mode == 1: # True if value is lower for more than the specified number of hours
             ret = check.tempdiff < tempdiff
             msg = "Nothing to do. Dew point difference " \
@@ -426,7 +426,7 @@ class DewHandler(CheckHandler):
                 check.time = site.ut().replace(tzinfo=None)
                 ret = False
 
-            return ret, msg
+            return bool(ret), msg
         else:
             check.time = site.ut().replace(tzinfo=None)
             return False, "Unrecognized mode %i." % check.mode
