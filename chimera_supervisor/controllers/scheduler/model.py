@@ -460,6 +460,7 @@ class Expose(Action):
         ca.imageType   = self.imageType
         ca.filename    = self.filename
         ca.objectName  = self.objectName
+        ca.wait_dome   = self.wait_dome
         ca.compress_format = self.compress_format
         return ca
 ###
