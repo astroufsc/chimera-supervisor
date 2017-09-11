@@ -262,7 +262,7 @@ class Program(Base):
         cp.createdAt= self.createdAt
         cp.finished = self.finished
         cp.startAt  = self.slewAt
-        cp.validFor = self.exposeAt
+        cp.validFor = -1.0 
 
         # for act in self.actions:
         #     chim_act = act.chimeraAction()
