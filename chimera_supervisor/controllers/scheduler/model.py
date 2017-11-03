@@ -1,13 +1,7 @@
+import logging as log
 import os
+
 import yaml
-from chimera_supervisor.core.constants import DEFAULT_ROBOBS_DATABASE, DEFAULT_ROBOBS_DATABASE_CONFIG
-
-from sqlalchemy import (Column, String, Integer, DateTime, Boolean, ForeignKey,
-                        Float, PickleType, MetaData, Text, create_engine)
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relation, backref
-from sqlalchemy.ext.hybrid import hybrid_property
-
 from chimera.controllers.scheduler.model import (Program as CProgram,
                                                  AutoFocus as CAutoFocus,
                                                  AutoFlat as CAutoFlat,
@@ -15,8 +9,13 @@ from chimera.controllers.scheduler.model import (Program as CProgram,
                                                  Point as CPoint,
                                                  Expose as CExpose)
 from chimera.util.position import Position
+from sqlalchemy import (Column, String, Integer, DateTime, Boolean, ForeignKey,
+                        Float, PickleType, MetaData, Text, create_engine)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import sessionmaker, relation, backref
 
-import logging as log
+from chimera_supervisor.core.constants import DEFAULT_ROBOBS_DATABASE, DEFAULT_ROBOBS_DATABASE_CONFIG
 
 # Check if a database configuration file exists. If yes, read configuration from it
 engine = None
@@ -60,7 +59,7 @@ class ExtMoniDB(Base):
 
     nairmass = Column(Integer)
 
-    pid = Column(String(length=65), ForeignKey("projects.pid"))
+    pid = Column(Integer, ForeignKey("projects.id"))
     tid = Column(Integer, ForeignKey('targets.id'))
 
     observed_am   = relation("ObservedAM", backref=backref("extmonidb", order_by="ObservedAM.id"),
@@ -96,7 +95,7 @@ class TimedDB(Base):
 
     id = Column(Integer, primary_key=True)
 
-    pid = Column(String(length=65), ForeignKey("projects.pid"))
+    pid = Column(Integer, ForeignKey("projects.id"))
     blockid = Column(Integer, ForeignKey("obsblock.id"))
     tid = Column(Integer, ForeignKey('targets.id'))
 
@@ -124,7 +123,7 @@ class RecurrentDB(Base):
 
     id = Column(Integer, primary_key=True)
 
-    pid = Column(String(length=65), ForeignKey("projects.pid"))
+    pid = Column(Integer, ForeignKey("projects.id"))
     blockid = Column(Integer, ForeignKey("obsblock.id"))
     tid = Column(Integer, ForeignKey('targets.id'))
 
@@ -141,8 +140,8 @@ class ObsBlock(Base):
     id = Column(Integer, primary_key=True)
     objid = Column(Integer, ForeignKey("targets.id"))
     blockid = Column(Integer)
-    bparid = Column(Integer, ForeignKey("blockpar.bid"))
-    pid = Column(String(length=65), ForeignKey("projects.pid"))
+    bparid = Column(Integer, ForeignKey("blockpar.id"))
+    pid = Column(Integer, ForeignKey("projects.id"))
     observed = Column(Boolean, default=False)
     completed= Column(Boolean, default=False)
     lastObservation = Column(DateTime, default=None)
@@ -153,7 +152,7 @@ class ObsBlock(Base):
 
     def __str__(self):
         if self.observed:
-            return "#%i %s[%i] [lastObserved: %s%s%s]: with %i actions." % (self.blockid,
+            return "#%i %s[%i] [lastObserved: %s%s%s]: with %i actions." % (self.id,
                                                                                   self.pid,
                                                                                   self.objid,
                                                                                   self.lastObservation,
@@ -162,16 +161,16 @@ class ObsBlock(Base):
                                                                             len(self.actions))
 
         else:
-            return "#%i %s[%i] [#NeverObserved%s]: with %i actions." % (self.blockid, self.pid,
+            return "#%i %s[%i] [#NeverObserved%s]: with %i actions." % (self.id, self.pid,
                                                                                 self.objid,
                                                                                 "| status: scheduled" if self.scheduled else "",
                                                                                 len(self.actions))
 
 class BlockPar(Base):
+    # TODO: this table data can be moved to Block?
     __tablename__ = "blockpar"
     id = Column(Integer, primary_key=True)
-    bid = Column(Integer)
-    pid = Column(String(length=65), default='')
+    pid = Column(Integer, ForeignKey("projects.id"))
 
     maxairmass = Column(Float, default=2.5)
     minairmass = Column(Float, default=-1.0)
@@ -184,8 +183,8 @@ class BlockPar(Base):
     applyextcorr = Column(Boolean, default=False)
 
     def __str__(self):
-        msg = "#[id: %4i][bid: %4i][PID: %10s][airmass: %5.2f][seeing: %5.2f][cloud: %2i][schedAlgorith: %2i]"
-        return msg % (self.id, self.bid, self.pid, self.maxairmass, self.maxseeing,
+        msg = "#[id: %4i][PID: %10s][airmass: %5.2f][seeing: %5.2f][cloud: %2i][schedAlgorith: %2i]"
+        return msg % (self.id, self.pid, self.maxairmass, self.maxseeing,
                       self.cloudcover, self.schedalgorith)
 
 
@@ -193,14 +192,14 @@ class Projects(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True)
-    pid = Column(String(length=65), default="PID")
+    pid = Column(String(length=65), nullable=False, unique=True)
     pi = Column(String(length=65), default="Anonymous Investigator")
     abstract = Column(Text, default="")
     url = Column(String(length=65), default="")
     priority = Column(Integer, default=0)
 
     def __str__(self):
-        return "#%3d %s pi:%s #abstract: %s #url: %s" % (self.id, self.flag,
+        return "#%3d pi:%s #abstract: %s #url: %s" % (self.id,
                                                          self.pi,
                                                          self.abstract,
                                                          self.url)
@@ -212,7 +211,7 @@ class Program(Base):
 
     id = Column(Integer, primary_key=True)
     tid = Column(Integer, ForeignKey('targets.id'))
-    name = Column(String(length=65), ForeignKey("targets.name"))
+    # name = Column(String(length=65), ForeignKey("targets.name"))
     pi = Column(String(length=65), default="Anonymous Investigator")
 
     priority = Column(Integer, default=0)
@@ -224,7 +223,7 @@ class Program(Base):
 
     # Extra information not present in standard chimera database schema,
     # required to link observing program with observing block
-    pid = Column(String(length=65), ForeignKey("projects.pid"))  # Project ID
+    pid = Column(Integer, ForeignKey("projects.id"))  # Project ID
     obsblock_id = Column(Integer, ForeignKey("obsblock.id"))  # Block ID
     blockpar_id = Column(Integer, ForeignKey("blockpar.id"))  # BlockPar ID
 
@@ -264,8 +263,8 @@ class ObservingLog(Base):
     id = Column(Integer, primary_key=True)
     time = Column(DateTime, default=dt.datetime.today())
     tid = Column(Integer, ForeignKey('targets.id'))
-    name = Column(String(length=65), ForeignKey("targets.name"))
-    priority = Column(Integer, ForeignKey("program.priority"),default=-1)
+    # name = Column(String(length=65), ForeignKey("targets.name"))
+    # priority = Column(Integer, ForeignKey("program.priority"),default=-1)
     action = Column(String(length=65))
 
     def __str__(self):
@@ -278,7 +277,7 @@ class Targets(Base):
     __tablename__ = "targets"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(length=65), default="Program")
+    name = Column(String(length=65), nullable=False, unique=True)
     type = Column(String(length=65), default="OBJECT")
     lastObservation = Column(DateTime, default=None)
     observed = Column(Boolean, default=False)
@@ -422,7 +421,7 @@ class Point(Action):
 
         if self.offsetEW is not None:
             ca.offsetEW = self.offsetEW
-            
+
         return ca
 
     def __str__ (self):
