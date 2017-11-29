@@ -111,6 +111,17 @@ class RobObs(ChimeraCLI):
                                 help="Date (yyyy/mm/dd-hh:mm:ss.s) of the end of the observations to be scheduled.",
                                 metavar="dend",
                                 helpGroup="SCHEDULER"))
+        self.addParameters(dict(name="LSTstart", long="lststart", type=float,
+                                help="Overwrite LST target selection cut. Does not change start/end of night only the"
+                                     " target selection cuts. Usefull to extend cut on thin projects.",
+                                metavar="LSTstart",
+                                helpGroup="SCHEDULER"))
+        self.addParameters(dict(name="LSTend", long="lstend", type=float,
+                                help="Overwrite LST target selection cut. Does not change start/end of night only the"
+                                     " target selection cuts. Usefull to extend cut on thin projects.",
+                                metavar="LSTend",
+                                helpGroup="SCHEDULER"))
+
         self.addParameters(dict(name="simulation",
                                 long="simulation",
                                 type=ParameterType.BOOLEAN,
