@@ -1,0 +1,35 @@
+pre-actions:
+    -   action: autofocus
+        start: 2000
+        end: 5000
+        step: 400
+        filter: CLEAR
+        exptime: 20
+
+
+pos-actions:
+
+    ## Pointing 1 (has autofocus) ##
+#    -   action: point
+#        name: "{name}"
+#        ra: "{ra}"
+#        dec: "{dec}"
+
+    -   action: expose
+        frames: 1
+        exptime: 1
+        filter: CLEAR
+        imageType: object
+        objectName: "{name}"
+        filename: "{name}-$DATE-$TIME"
+        compress_format: fits_rice
+#        binning: 2x2
+#        window: "680:1360,680:1360"
+        wait_dome: True
+
+    -   action: autofocus
+        start: 2000
+        end: 5000
+        step: 400
+        filter: CLEAR
+        exptime: 20

@@ -1,0 +1,19 @@
+project:
+  pid: TEST
+  pi: test
+  abstract: Variable stars observations
+  url: www.lna.br
+  priority: 21
+observing_blocks:
+  block 1:
+    id: 0
+    pid: TEST
+    maxairmass: 3.0
+    minairmass: -1
+    maxmoonBright: 100.
+    minmoonBright: 00.
+    minmoonDist: 40.
+    maxseeing: 1.5
+    cloudcover: 0.8
+    schedalgorith: 0
+    applyextcorr: 1
