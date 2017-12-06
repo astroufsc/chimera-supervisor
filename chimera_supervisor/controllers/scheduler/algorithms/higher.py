@@ -77,17 +77,17 @@ class Higher(BaseScheduleAlgorith):
                            dtype=[('minmoonDist',np.float),
                                   ('minmoonBright',np.float),
                                   ('maxmoonBright',np.float),
-                                  ('lenght',np.float)])
+                                  ('length',np.float)])
 
         radecPos = np.array([0])
 
-        blockid = targets[:][0][0].blockid
+        blockid = targets[:][0][0].id
 
         for itr,target in enumerate(targets):
-            if blockid != target[0].blockid:
+            if blockid != target[0].id:
                 radecArray =  np.append(radecArray,Position.fromRaDec(target[2].targetRa,
                                                                       target[2].targetDec))
-                blockid = target[0].blockid
+                blockid = target[0].id
                 radecPos = np.append(radecPos,itr)
 
         '''
@@ -141,7 +141,7 @@ class Higher(BaseScheduleAlgorith):
 
                 def worker(index):
                     try:
-                        time_offset = Coord.fromAS(moonPar['lenght'][index])
+                        time_offset = Coord.fromAS(moonPar['length'][index])
                         log.debug('%s %s %s' % (lst, time_offset.R, time_offset.H))
                         targetPar[index] = (
                             float(site.raDecToAltAz(radecArray[index],lst+time_offset.R/2.).alt),
@@ -256,7 +256,7 @@ class Higher(BaseScheduleAlgorith):
                 radecPos = radecPos[mask]
                 moonPar = moonPar[mask]
                 mask = mask[mask]
-                obsSlots['blockid'][itr] = s_target[0].blockid
+                obsSlots['blockid'][itr] = s_target[0].id
                 nblocks_scheduled += 1
                 if max_sched_blocks > 0 and nblocks_scheduled >= max_sched_blocks:
                     log.info('Maximum number of scheduled blocks (%i) reached. Stopping.' % max_sched_blocks)
@@ -264,7 +264,7 @@ class Higher(BaseScheduleAlgorith):
 
 
                 # Check if this block has more targets...
-                secTargets = targets.filter(ObsBlock.blockid == s_target[0].blockid,
+                secTargets = targets.filter(ObsBlock.id == s_target[0].id,
                                             ObsBlock.objid != s_target[0].objid)
 
                 if secTargets.count() > 0:

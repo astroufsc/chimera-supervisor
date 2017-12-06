@@ -18,6 +18,7 @@ from sqlalchemy.orm import sessionmaker, relation, backref
 from chimera_supervisor.core.constants import DEFAULT_ROBOBS_DATABASE, DEFAULT_ROBOBS_DATABASE_CONFIG
 
 # Check if a database configuration file exists. If yes, read configuration from it
+# TODO: move this to chimera.config
 engine = None
 if os.path.exists(DEFAULT_ROBOBS_DATABASE_CONFIG):
     with open(DEFAULT_ROBOBS_DATABASE_CONFIG, 'r') as stream:
@@ -43,7 +44,6 @@ else:
 
 if engine is None:
     engine = create_engine('sqlite:///%s' % DEFAULT_ROBOBS_DATABASE, echo=False)
-# log.debug('-- engine created with sqlite:///%s' % DEFAULT_PROGRAM_DATABASE)
 metaData = MetaData()
 metaData.bind = engine
 
@@ -139,7 +139,6 @@ class ObsBlock(Base):
     __tablename__ = "obsblock"
     id = Column(Integer, primary_key=True)
     objid = Column(Integer, ForeignKey("targets.id"))
-    blockid = Column(Integer)
     bparid = Column(Integer, ForeignKey("blockpar.id"))
     pid = Column(Integer, ForeignKey("projects.id"))
     observed = Column(Boolean, default=False)
@@ -179,7 +178,7 @@ class BlockPar(Base):
     minmoonDist = Column(Float, default=-1.)  # in degrees
     maxseeing = Column(Float, default=2.0)  # seing
     cloudcover = Column(Integer, default=0)  # must be defined by user
-    schedalgorith = Column(Integer, default=0)  # scheduling algorith
+    schedalgorith = Column(Integer, default=0)  # scheduling algorithm
     applyextcorr = Column(Boolean, default=False)
 
     def __str__(self):
@@ -207,11 +206,9 @@ class Projects(Base):
 
 class Program(Base):
     __tablename__ = "program"
-    print "model.py"
 
     id = Column(Integer, primary_key=True)
     tid = Column(Integer, ForeignKey('targets.id'))
-    # name = Column(String(length=65), ForeignKey("targets.name"))
     pi = Column(String(length=65), default="Anonymous Investigator")
 
     priority = Column(Integer, default=0)
@@ -227,13 +224,10 @@ class Program(Base):
     obsblock_id = Column(Integer, ForeignKey("obsblock.id"))  # Block ID
     blockpar_id = Column(Integer, ForeignKey("blockpar.id"))  # BlockPar ID
 
-    # actions = relation("Action", backref=backref("program", order_by="Action.id"),
-    #                    cascade="all, delete, delete-orphan")
-
     def __str__(self):
-        return "#%d %s:%s pi:%s [obsblock: %i|blockpar: %i | target: %i]" % (self.id,
+        return "#%d :%s pi:%s [obsblock: %i|blockpar: %i | target: %i]" % (self.id,
                                                                              self.pid,
-                                                                             self.name,
+                                                                             # self.name,
                                                                              self.pi,
                                                                              self.obsblock_id,
                                                                              self.blockpar_id,
@@ -243,17 +237,12 @@ class Program(Base):
         cp = CProgram()
 
         cp.tid      = self.tid
-        cp.name     = self.name
         cp.pi       = self.pi
         cp.priority = self.priority
         cp.createdAt= self.createdAt
         cp.finished = self.finished
         cp.slewAt   = self.slewAt
         cp.exposeAt = self.exposeAt
-
-        # for act in self.actions:
-        #     chim_act = act.chimeraAction()
-        #     self.actions.append(act)
 
         return cp
 
@@ -263,13 +252,10 @@ class ObservingLog(Base):
     id = Column(Integer, primary_key=True)
     time = Column(DateTime, default=dt.datetime.today())
     tid = Column(Integer, ForeignKey('targets.id'))
-    # name = Column(String(length=65), ForeignKey("targets.name"))
-    # priority = Column(Integer, ForeignKey("program.priority"),default=-1)
     action = Column(String(length=65))
 
     def __str__(self):
-        return '%s [%s] P%s Action: %s' % ( self.time,
-                                              self.name,
+        return '%s P%s Action: %s' % ( self.time,
                                               self.priority,
                                               self.action)
 
@@ -279,8 +265,6 @@ class Targets(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(length=65), nullable=False, unique=True)
     type = Column(String(length=65), default="OBJECT")
-    lastObservation = Column(DateTime, default=None)
-    observed = Column(Boolean, default=False)
     scheduled = Column(Boolean, default=False)
     targetRa = Column(Float, default=0.0)
     targetDec = Column(Float, default=0.0)
@@ -311,7 +295,6 @@ class Targets(Base):
         if ah > 12.:
             ah -= 24.
         self.targetAH = ah
-        # print lmst, self.targetRa, self.targetAH,type(lmst)
 
 class Action(Base):
 
@@ -483,8 +466,6 @@ class Expose(Action):
         ca.objectName  = self.objectName
 
         return ca
-###
 
-#metaData.drop_all(engine)
 metaData.create_all(engine)
 
