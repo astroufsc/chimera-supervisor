@@ -111,6 +111,13 @@ class RobObs(ChimeraCLI):
                                 help="Date (yyyy/mm/dd-hh:mm:ss.s) of the end of the observations to be scheduled.",
                                 metavar="dend",
                                 helpGroup="SCHEDULER"))
+        self.addParameters(dict(name="yesterday", long="yesterday",
+                                type=ParameterType.BOOLEAN,
+                                default=False,
+                                help="Set start/end dates for yesterday (subtract 1d from times) for"
+                                     " target selection cuts. Usefull for plotting last observed night.",
+                                metavar="yesterday",
+                                helpGroup="SCHEDULER"))
         self.addParameters(dict(name="LSTstart", long="lststart", type=float,
                                 help="Overwrite LST target selection cut. Does not change start/end of night only the"
                                      " target selection cuts. Usefull to extend cut on thin projects.",
@@ -1251,6 +1258,10 @@ class RobObs(ChimeraCLI):
             yy,mm,dd = [int(val) for val in day.split('/')]
             hh,mi,ss = [int(val) for val in hour.split(':') ]
             self.obsEnd = dt.datetime(yy,mm,dd,hh,mi,ss)
+
+        if opt.yesterday:
+            self.obsStart -= dt.timedelta(days=1)
+            self.obsEnd -= dt.timedelta(days=1)
 
         self.lststart = site.LST(self.obsStart).toH()
         self.lstend = site.LST(self.obsEnd).toH()
