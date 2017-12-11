@@ -242,8 +242,8 @@ class Program(Base):
         cp.priority = self.priority
         cp.createdAt= self.createdAt
         cp.finished = self.finished
-        cp.slewAt   = self.slewAt
-        cp.exposeAt = self.exposeAt
+        cp.startAt  = self.slewAt
+        cp.validFor = -1.0 
 
         return cp
 
@@ -339,6 +339,7 @@ class AutoFlat(Action):
     id     = Column(Integer, ForeignKey('action.id'), primary_key=True)
     filter  = Column(String(length=65), default=None)
     frames     = Column(Integer, default=1)
+    binning = Column(String, default=None)
 
     @staticmethod
     def chimeraAction(self):
@@ -346,6 +347,7 @@ class AutoFlat(Action):
         ca = CAutoFlat()
         ca.filter = self.filter
         ca.frames = self.frames
+        ca.binning = self.binning
 
         return ca
 
@@ -435,14 +437,18 @@ class Expose(Action):
 
     exptime    = Column(Integer, default=5)
 
-    binning    = Column(Integer, default=None)
-    window     = Column(Float, default=None)
+    binning = Column(String, default=None)
+    window     = Column(String, default=None)
 
     shutter    = Column(String(length=65), default="OPEN")
 
-    imageType  = Column(String(length=65), default="")
-    filename   = Column(String(length=65), default="$DATE-$TIME")
-    objectName = Column(String(length=65), default="")
+    wait_dome = Column(Boolean, default=True)
+
+    imageType  = Column(String, default="")
+    filename   = Column(String, default="$DATE-$TIME")
+    objectName = Column(String, default="")
+
+    compress_format = Column(String, default="NO")
 
     def __str__ (self):
         return "expose: exptime=%d frames=%d type=%s" % (self.exptime, self.frames, self.imageType)
@@ -460,7 +466,8 @@ class Expose(Action):
         ca.imageType   = self.imageType
         ca.filename    = self.filename
         ca.objectName  = self.objectName
-
+        ca.wait_dome   = self.wait_dome
+        ca.compress_format = self.compress_format
         return ca
 
 metaData.create_all(engine)
