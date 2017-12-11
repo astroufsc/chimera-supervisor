@@ -170,6 +170,7 @@ class BlockPar(Base):
     __tablename__ = "blockpar"
     id = Column(Integer, primary_key=True)
     pid = Column(Integer, ForeignKey("projects.id"))
+    name = Column(String(length=65), nullable=False, unique=True)
 
     maxairmass = Column(Float, default=2.5)
     minairmass = Column(Float, default=-1.0)
@@ -277,14 +278,9 @@ class Targets(Base):
     def __str__(self):
         raDec = Position.fromRaDec(self.targetRa, self.targetDec, 'J2000')
 
-        if self.observed:
-            msg = "#[id: %5d] [name: %15s %s (ah: %.2f)] [type: %s] #LastObverved@: %s"
-            return msg % (self.id, self.name, raDec, self.targetAH,
-                          self.type, self.lastObservation)
-        else:
-            msg = "#[id: %5d] [name: %15s %s (ah: %.2f)] [type: %s] #NeverObserved"
-            return msg % (self.id, self.name, raDec, self.targetAH,
-                          self.type,)
+        msg = "#[id: %5d] [name: %15s %s (ah: %.2f)] [type: %s]"
+        return msg % (self.id, self.name, raDec, self.targetAH, self.type)
+
     @hybrid_property
     def lst(self):
         return self.targetRa + self.targetAH
