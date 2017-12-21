@@ -55,6 +55,8 @@ class Recurrent(BaseScheduleAlgorith):
         kwargs['query'] = kwargs['query'].filter(or_(ObsBlock.observed == False,
                                                      and_(ObsBlock.observed == True,
                                                           ObsBlock.lastObservation < reference_date)))
+        # TODO: .order_by(ObsBlock.lastObservation.asc())
+
         new_ntargets = len(kwargs['query'][:])
         log.debug('Filtering %i of %i targets' % (new_ntargets, ntargets))
         # Select targets with the Higher algorithm
@@ -95,6 +97,7 @@ class Recurrent(BaseScheduleAlgorith):
             session.add(recurrent_block)
 
         session.commit()
+        session.close()
 
     @staticmethod
     def observed(time, program, site = None, soft = False):
@@ -153,4 +156,5 @@ class Recurrent(BaseScheduleAlgorith):
             block.observed = True
 
         session.commit()
+        session.close()
 

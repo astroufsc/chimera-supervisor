@@ -62,6 +62,7 @@ class Timed(BaseScheduleAlgorith):
             return programs
         finally:
             session.commit()
+            session.close()
 
 
     @staticmethod
@@ -94,6 +95,7 @@ class Timed(BaseScheduleAlgorith):
 
         finally:
             session.commit()
+            session.close()
 
     @staticmethod
     def observed(time, program, site = None, soft = False):
@@ -119,6 +121,7 @@ class Timed(BaseScheduleAlgorith):
 
         finally:
             session.commit()
+            session.close()
 
     @staticmethod
     def soft_clean(pid,block=None):
@@ -138,6 +141,7 @@ class Timed(BaseScheduleAlgorith):
 
         finally:
             session.commit()
+            session.close()
 
     @staticmethod
     def clean(pid):
@@ -156,3 +160,4 @@ class Timed(BaseScheduleAlgorith):
 
         finally:
             session.commit()
+            session.close()

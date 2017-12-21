@@ -125,6 +125,11 @@ class RobObs(ChimeraCLI):
                                 metavar="target_name",
                                 helpGroup="SCHEDULER"))
 
+        self.addParameters(dict(name="block_name", long="block-name", type='string',
+                                help="Block Name.",
+                                metavar="block_name",
+                                helpGroup="SCHEDULER"))
+
     ############################################################################
 
     @action(long="addProject",
@@ -136,6 +141,10 @@ class RobObs(ChimeraCLI):
             Input configuration file for project database. If project exists
             update information, create new project otherwise.
         '''
+
+        if not options.filename:
+            self.err(red('*') + 'Input not given. Use \'-f\'...')
+            return -1
 
         self.out('-Reading project information from %s ...' % options.filename)
 
@@ -176,16 +185,19 @@ class RobObs(ChimeraCLI):
         self.out('-Reading observing block information...')
 
         if 'observing_blocks' in config:
-            blockpar_list = ['id', 'pid', 'maxairmass', 'minairmass', 'maxmoonBright', 'minmoonBright', 'minmoonDist',
-                             'maxseeing', 'cloudcover', 'schedalgorith', 'applyextcorr']
 
             self.out('--Found %i blocks.' % len(config['observing_blocks']))
             for observing_block in config['observing_blocks']:
-                b_id = config['observing_blocks'][observing_block]['id']
-                b_pid = session.query(Projects).filter(
-                    Projects.pid == config['observing_blocks'][observing_block]['pid']).first().id
-                self.out('---Adding block %s.%s to the database...' % (b_pid, b_id))
-                session.add(block)
+                b_pid = session.query(Projects).filter(Projects.pid == config['project']['pid']).first().id
+                block = session.query(BlockPar).filter(BlockPar.name == config['observing_blocks'][observing_block]['name']).first()
+                if block is None:
+                    self.out('---Adding block %s/%s to the database...' % (config['project']['pid'], config['observing_blocks'][observing_block]['name']))
+                    block = BlockPar(pid=b_pid, **config['observing_blocks'][observing_block])
+                    session.add(block)
+                else:
+                    self.out('---Updating block %s/%s...' % (config['project']['pid'], config['observing_blocks'][observing_block]['name']))
+                    for par in config['observing_blocks'][observing_block]:
+                        setattr(block, par, config['observing_blocks'][observing_block][par])
             session.commit()
         else:
             self.out('--No block definition found.')
@@ -396,6 +408,11 @@ class RobObs(ChimeraCLI):
             self.err(red('*') + 'Input not given. Use \'-f\'...')
             return -1
 
+
+        if not opt.block_name:
+            self.err(red('*') + 'Block name not given. Use \'--block-name\' ')
+            return -1
+
         session = RSession()
 
         def _validateOffset(value):
@@ -420,7 +437,8 @@ class RobObs(ChimeraCLI):
         else:
             target = target[0]
 
-        project = session.query(Projects).filter(Projects.pid == opt.pid)[0]
+        project = session.query(Projects).filter(Projects.pid == opt.pid).first()
+        bparid = session.query(BlockPar).filter(BlockPar.name == opt.block_name, BlockPar.pid == project.id).first().id
 
         b_pid = session.query(Projects).filter(Projects.pid == opt.pid).first().id
         addblock = session.query(ObsBlock).filter(ObsBlock.objid == target.id).filter(ObsBlock.pid == b_pid)
@@ -442,6 +460,7 @@ class RobObs(ChimeraCLI):
             self.exit("Block already observed")
         addblock = ObsBlock(objid=target.id,
                             pid=project.id,
+                            bparid=bparid
                             )
 
         # process pre-slew actions
@@ -664,7 +683,7 @@ class RobObs(ChimeraCLI):
             actionGroup="")
     def makeObservingLog(self, opt):
         import matplotlib
-        matplotlib.use('Agg')
+        # matplotlib.use('Agg')
         import matplotlib.pyplot as py
         fig = py.figure(1, figsize=(14, 8))
 
@@ -712,7 +731,7 @@ class RobObs(ChimeraCLI):
             line, = py.gca().plot(time, alt, '-', label=target.name)
 
             targetObs = query.filter(ObservingLog.tid == id)
-            program = session.query(Program).filter(Program.priority == targetObs[0].priority).first()
+            program = session.query(Program)
 
             start = []
             end = []
@@ -810,7 +829,8 @@ class RobObs(ChimeraCLI):
 
         self.out('-Deleting all scheduled observing blocks from project %s from the queue.' % opt.pid)
 
-        programs = session.query(Program).filter(Program.pid == opt.pid)
+        pid = session.query(Projects).filter(Projects.pid == opt.pid).first().id
+        programs = session.query(Program).filter(Program.pid == pid)
 
         for p in programs:
             self.out(red('--Deleting'))
@@ -820,14 +840,14 @@ class RobObs(ChimeraCLI):
 
         session.commit()
 
-        sched_blocks = session.query(ObsBlock).filter(ObsBlock.pid == opt.pid,
+        sched_blocks = session.query(ObsBlock).filter(ObsBlock.pid == pid,
                                                       ObsBlock.scheduled == 1)
 
         for sb in sched_blocks:
             sb.scheduled = 0
 
         for sched in schedAlgorithms:
-            schedAlgorithms[sched].clean(opt.pid)
+            schedAlgorithms[sched].clean(pid)
 
         session.commit()
 
@@ -945,7 +965,6 @@ class RobObs(ChimeraCLI):
                                        obsEnd=obsEnd,
                                        query=nquery,
                                        site=site)
-            # config=pgrconfig)
 
             # First schedule all
             for bid in obsTargets:
@@ -1020,18 +1039,13 @@ class RobObs(ChimeraCLI):
         self.mktimes(opt)
 
         site = self.site
-        telescope = self.telescope
         obsStart = site.JD(self.obsStart) - 2400000.5
         obsEnd = site.JD(self.obsEnd) - 2400000.5
-        lststart = self.lststart
-        lstend = self.lstend
 
         otime = obsStart
 
         appOpen = 0.
         idle = 0.
-
-        # qExec = queue.QueueScheduler(site)
 
         session = RSession()
         telPos = None  # current telescope position
@@ -1050,10 +1064,6 @@ class RobObs(ChimeraCLI):
             msg = ''
             slewAt = float(program.slewAt)
             _idle = slewAt - otime
-            # if _idle*24.*60.*60. < aplen:
-            #     slewAt = otime
-            #     _idle = 0.
-            # print slewAt,otime
             stime = otime
             if _idle > 1e-5:
                 msg += '[info: Program slew %.3fm in the future. waiting...]' % ((_idle) * 24. * 60.)
@@ -1076,16 +1086,12 @@ class RobObs(ChimeraCLI):
             self.out('@ %.5f (%.5f): Acquiring %45s %s (len: %.2f)' % (otime, slewAt, program, msg, aplen))
             log = ObservingLog(time=datetimeFromJD(stime + 2400000.5, ),
                                tid=program.tid,
-                               name=target.name,
-                               priority=program.priority,
                                action='Simulation: Acquisition Start')
             session.add(log)
             session.commit()
 
             log = ObservingLog(time=datetimeFromJD(stime + (aplen / 86.4e3) + 2400000.5, ),
                                tid=program.tid,
-                               name=program.name,
-                               priority=program.priority,
                                action='Simulation: Acquisition End')
             session.add(log)
 
@@ -1135,8 +1141,9 @@ class RobObs(ChimeraCLI):
         remoteManager = self.robobs.getManager()
         site = remoteManager.getProxy(remoteManager.getResourcesByClass("Site")[0])
 
-        self.obsStart = site.sunset_twilight_end()
-        self.obsEnd = site.sunrise_twilight_begin(self.obsStart)
+        #TODO: remove tz info from the datetimes below!!!
+        self.obsStart = site.sunset_twilight_end().replace(tzinfo=None)
+        self.obsEnd = site.sunrise_twilight_begin(self.obsStart).replace(tzinfo=None)
 
         if opt.JDstart:
             self.obsStart = datetimeFromJD(opt.JDstart)

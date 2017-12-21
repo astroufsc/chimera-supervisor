@@ -14,6 +14,7 @@ from sqlalchemy import (Column, String, Integer, DateTime, Boolean, ForeignKey,
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import sessionmaker, relation, backref
+from sqlalchemy.pool import NullPool
 
 from chimera_supervisor.core.constants import DEFAULT_ROBOBS_DATABASE, DEFAULT_ROBOBS_DATABASE_CONFIG
 
@@ -24,7 +25,16 @@ if os.path.exists(DEFAULT_ROBOBS_DATABASE_CONFIG):
     with open(DEFAULT_ROBOBS_DATABASE_CONFIG, 'r') as stream:
         try:
             database_config = yaml.load(stream)
-            engine = create_engine(database_config['database'], echo=False)
+            if "mysql" in database_config['database']:
+                print 'mysql'
+                engine = create_engine(database_config['database'], echo=False, poolclass=NullPool) #, pool_pre_ping=True) #, pool_size = 20, max_overflow = 0)
+
+                # To Avoid MySQL-specific rounding problems #
+                from sqlalchemy.dialects.mysql import DOUBLE
+                Float = DOUBLE(asdecimal=False)
+
+            else:
+                engine = create_engine(database_config['database'], echo=False)
         except yaml.YAMLError as exc:
             engine = None
             log.error('Could not read robobs configuration file %s, falling back to default sqlite database.' %
@@ -287,7 +297,7 @@ class Targets(Base):
 
     @lst.setter
     def lst(self, lmst):
-        ah = lmst - self.targetRa
+        ah = lmst - float(self.targetRa)
         if ah > 12.:
             ah -= 24.
         self.targetAH = ah
@@ -339,7 +349,7 @@ class AutoFlat(Action):
     id     = Column(Integer, ForeignKey('action.id'), primary_key=True)
     filter  = Column(String(length=65), default=None)
     frames     = Column(Integer, default=1)
-    binning = Column(String, default=None)
+    binning = Column(String(length=3), default=None)
 
     @staticmethod
     def chimeraAction(self):
@@ -437,18 +447,18 @@ class Expose(Action):
 
     exptime    = Column(Integer, default=5)
 
-    binning = Column(String, default=None)
-    window     = Column(String, default=None)
+    binning = Column(String(length=3), default=None)
+    window     = Column(String(length=65), default=None)
 
     shutter    = Column(String(length=65), default="OPEN")
 
     wait_dome = Column(Boolean, default=True)
 
-    imageType  = Column(String, default="")
-    filename   = Column(String, default="$DATE-$TIME")
-    objectName = Column(String, default="")
+    imageType  = Column(String(length=10), default="")
+    filename   = Column(String(length=65), default="$DATE-$TIME")
+    objectName = Column(String(length=65), default="")
 
-    compress_format = Column(String, default="NO")
+    compress_format = Column(String(length=10), default="NO")
 
     def __str__ (self):
         return "expose: exptime=%d frames=%d type=%s" % (self.exptime, self.frames, self.imageType)

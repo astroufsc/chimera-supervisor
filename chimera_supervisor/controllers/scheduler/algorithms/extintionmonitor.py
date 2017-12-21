@@ -22,6 +22,7 @@ class ExtintionMonitor(BaseScheduleAlgorith):
             session.delete(block)
 
         session.commit()
+        session.close()
 
     @staticmethod
     def soft_clean(pid,block=None):
@@ -33,6 +34,7 @@ class ExtintionMonitor(BaseScheduleAlgorith):
                 session.delete(observed_am)
 
         session.commit()
+        session.close()
 
     @staticmethod
     def add(block):
@@ -52,6 +54,7 @@ class ExtintionMonitor(BaseScheduleAlgorith):
             session.add(ext_moni_block)
 
         session.commit()
+        session.close()
 
 
     @staticmethod
@@ -520,6 +523,8 @@ class ExtintionMonitor(BaseScheduleAlgorith):
             log.debug("Could not find suitable target")
 
         session.commit()
+        session.close()
+
         return observe_program
 
     @staticmethod
@@ -553,3 +558,4 @@ class ExtintionMonitor(BaseScheduleAlgorith):
             obsblock.lastObservation = site.ut().replace(tzinfo=None)
 
         session.commit()
+        session.close()

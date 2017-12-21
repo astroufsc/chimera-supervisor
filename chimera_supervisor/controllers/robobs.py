@@ -161,7 +161,6 @@ class RobObs(ChimeraObject):
             log = ObservingLog(time=datetimeFromJD(site.MJD()+2400000.5,),
                                  tid=program.tid,
                                  name=program.name,
-                                 priority=program.priority,
                                  action='ROBOBS: Program Started')
             rsession.add(log)
         finally:
@@ -183,7 +182,6 @@ class RobObs(ChimeraObject):
             log = ObservingLog(time=datetimeFromJD(site.MJD()+2400000.5,),
                                  tid=program.tid,
                                  name=program.name,
-                                 priority=program.priority,
                                  action='ROBOBS: Program End with status %s(%s)' % (status,
                                                                                     message))
             rsession.add(log)
@@ -327,12 +325,12 @@ class RobObs(ChimeraObject):
         else:
             nowmjd = now
 
-        program = None
-
         # Get a list of priorities
         plist = self.getPList()
 
         if len(plist) == 0:
+            session.commit()
+            session.close()
             return None
 
         # Get project with highest priority as reference
@@ -345,6 +343,8 @@ class RobObs(ChimeraObject):
             # program = session.merge(program)
             if ( (not program[0].slewAt) and (self.checkConditions(program, nowmjd, plen))):
                 # Program should be done right away!
+                session.commit()
+                session.close()
                 return program
 
             self._debuglog.info('Current program length: %.2f m. Slew@: %.3f'%(plen/60., program[0].slewAt))
@@ -448,14 +448,17 @@ class RobObs(ChimeraObject):
             # [TO-CHECK] What the scheduler will do? should sleep for a while and
             # [TO-CHECK] try again.
             session.commit()
+            session.close()
             return None
         checktime = nowmjd if nowmjd > program[0].slewAt else program[0].slewAt
         if not self.checkConditions(program,checktime,plen):
             session.commit()
+            session.close()
             return None
 
         self._debuglog.info('Choose program with priority %i'%priority)
         session.commit()
+        session.close()
         return program
 
     def getProgram(self, nowmjd, priority):
@@ -506,11 +509,13 @@ class RobObs(ChimeraObject):
                             program[0].slewAt = dt
 
                 session.commit()
+                # session.close()
                 return program,dT
 
 
         self.log.warning('No program found...')
         session.commit()
+        session.close()
         return None,0.
 
 
