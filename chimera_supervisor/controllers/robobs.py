@@ -490,7 +490,7 @@ class RobObs(ChimeraObject):
 
             if program is not None:
                 self._debuglog.debug('Found program %s' % program[0])
-                dT = program[3].length
+                dT = program[2].length
 
                 # for ii,act in enumerate(program[2].actions):
                 #     if act.__tablename__ == 'action_expose':

@@ -1146,7 +1146,7 @@ class RobObs(ChimeraCLI):
             if not program_list:
                 break
             program = session.merge(program_list[0])
-            obs_block = session.merge(program_list[3])
+            obs_block = session.merge(program_list[2])
             self.out('slew@: %s' % program.slewAt)
 
             program = session.merge(program)
