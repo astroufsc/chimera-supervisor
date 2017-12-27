@@ -490,11 +490,11 @@ class RobObs(ChimeraObject):
 
             if program is not None:
                 self._debuglog.debug('Found program %s' % program[0])
-                dT = 0.
+                dT = program[3].length
 
-                for ii,act in enumerate(program[2].actions):
-                    if act.__tablename__ == 'action_expose':
-                        dT+=act.exptime*act.frames
+                # for ii,act in enumerate(program[2].actions):
+                #     if act.__tablename__ == 'action_expose':
+                #         dT+=act.exptime*act.frames
 
                 if not sched.timed_constraint() and program[0].slewAt > nowmjd:
                     self._debuglog.debug('Checking if program can be observed earlier...')

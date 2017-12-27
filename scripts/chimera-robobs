@@ -1146,10 +1146,11 @@ class RobObs(ChimeraCLI):
             if not program_list:
                 break
             program = session.merge(program_list[0])
+            obs_block = session.merge(program_list[3])
             self.out('slew@: %s' % program.slewAt)
 
             program = session.merge(program)
-            aplen = self.calcObsTime(program,20.)
+            aplen = obs_block.length
 
             #while 0 <  aplen/86.4e3 < idleTime:
             msg = ''
