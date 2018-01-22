@@ -314,6 +314,9 @@ class RobObs(ChimeraObject):
                 # sched.start()
                 self.wake()
                 self._debuglog.debug("Done")
+                if self._no_program_on_queue:
+                    self._debuglog.info("No program on robobs queue. Stopping robobs...")
+                    self.stop()
             else:
                 self._debuglog.debug("Current state is off. Won't respond.")
 
