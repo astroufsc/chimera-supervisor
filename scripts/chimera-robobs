@@ -440,7 +440,7 @@ class RobObs(ChimeraCLI):
 
             block_lenght = 0.
 
-            block = entry.data
+            block = entry
 
             # config = ConfigParser.RawConfigParser()
             #
@@ -961,8 +961,8 @@ class RobObs(ChimeraCLI):
 
         obsStart = self.obsStart
         obsEnd = self.obsEnd
-        lststart = self.lststart-2.
-        lstend = self.lstend+2.
+        lststart = opt.LSTstart if opt.LSTstart is not None else self.lststart-2.
+        lstend = opt.LSTend if opt.LSTend is not None else self.lstend+2.
         remoteManager = self.robobs.getManager()
         site = remoteManager.getProxy(remoteManager.getResourcesByClass("Site")[0])
 

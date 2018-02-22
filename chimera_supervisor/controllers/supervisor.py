@@ -186,6 +186,7 @@ class Supervisor(ChimeraObject):
             self.updater.dispatcher.add_handler(telegram.ext.CommandHandler('info', self.telegramInfo))
             self.updater.dispatcher.add_handler(telegram.ext.CommandHandler('lock', self.telegramLock))
             self.updater.dispatcher.add_handler(telegram.ext.CommandHandler('unlock', self.telegramUnLock))
+            self.updater.dispatcher.add_handler(telegram.ext.CommandHandler('set', self.telegramSet))
             self.updater.dispatcher.add_handler(telegram.ext.CommandHandler('help', self.telegramHelp))
             # self.updater.dispatcher.addErrorHandler(error)
 
@@ -327,6 +328,43 @@ class Supervisor(ChimeraObject):
         else:
             bot.sendMessage(update.message.chat_id, text="%s not locked with key %s." % (instrument,
                                                                            key))
+
+    def telegramSet(self, bot, update):
+        try:
+            instrument, flag = str(update.message.text).split(" ")[1:3]
+        except:
+            bot.sendMessage(update.message.chat_id, text="Could not parse input string \"%s\"." % update.message.text)
+            return
+
+        try:
+            old_flag = self.getFlag(instrument)
+            if old_flag != InstrumentOperationFlag.LOCK:
+                bot.sendMessage('Setting %s flag: %s -> %s' % (instrument, old_flag, flag))
+                self.setFlag(instrument, InstrumentOperationFlag.fromStr(flag.upper()))
+            else:
+                bot.sendMessage("Instrument %s is locked. Unlock it first before trying to set flag." % instrument)
+                return
+        except:
+            bot.sendMessage('Could not set flag %s on %s' % (flag, instrument))
+        else:
+            bot.sendMessage('%s status now: %s' % (instrument, self.getFlag(instrument)))
+        # instrument_key_list = self.getInstrumentKey(instrument)
+        # if key in instrument_key_list:
+        #     try:
+        #         self.unlockInstrument(instrument,key)
+        #     except:
+        #         if key not in self.getInstrumentKey(instrument):
+        #             bot.sendMessage(update.message.chat_id, text="%s unlocked with key %s." % (instrument,
+        #                                                                                        key))
+        #         else:
+        #             bot.sendMessage(update.message.chat_id, text="Could not unlock %s with key %s." % (instrument,
+        #                                                                                                key))
+        #     else:
+        #             bot.sendMessage(update.message.chat_id, text="%s unlocked with key %s." % (instrument,
+        #                                                                                        key))
+        # else:
+        #     bot.sendMessage(update.message.chat_id, text="%s not locked with key %s." % (instrument,
+        #                                                                    key))
 
     def telegramHelp(self, bot, update):
         helpMSG = '''Commands:

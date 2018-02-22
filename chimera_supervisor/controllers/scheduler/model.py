@@ -108,6 +108,38 @@ class RecurrentDB(Base):
     def __str__(self):
         return '[Recurrent:%s] visits: %i lastVisit: %s]' % (self.pid, self.visits, self.lastVisit)
 
+# class OperationFlags(Base):
+#     __tablename__ = "opsflags"
+#     id = Column(Integer, primary_key=True)
+#     name = Column(String, default=None)
+#     status = Column(Integer, default=0)
+#
+#     # If True aways reset when restarting the controller. Otherwise, read from database.
+#     reset = Column(Boolean, default=True)
+#
+#     # Action list
+#     actionlist = relation("ActionList", backref=backref("opsflags", order_by="ActionList.key_id"),
+#                        cascade="all, delete, delete-orphan")
+#
+#     lastUpdate = Column(DateTime, default=None)
+#     lastChange = Column(DateTime, default=None)
+#
+# class OperationFlags(Base):
+#     __tablename__ = "opsflags"
+#     id = Column(Integer, primary_key=True)
+#     name = Column(String, default=None)
+#     status = Column(Integer, default=0)
+#
+#     # If True aways reset when restarting the controller. Otherwise, read from database.
+#     reset = Column(Boolean, default=True)
+#
+#     # Action list
+#     actionlist = relation("ActionList", backref=backref("opsflags", order_by="ActionList.key_id"),
+#                        cascade="all, delete, delete-orphan")
+#
+#     lastUpdate = Column(DateTime, default=None)
+#     lastChange = Column(DateTime, default=None)
+#
 class Targets(Base):
     __tablename__ = "targets"
 
