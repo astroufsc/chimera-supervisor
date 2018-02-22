@@ -38,6 +38,7 @@ class Supervisor(ChimeraObject):
                     "robobs"     : None,
                     "domefan"    : None,
                     "weatherstations" : None,
+                    "controllers" : None,
                     "telegram-token": None,          # Telegram bot token
                     "telegram-broascast-ids": None,  # Telegram broadcast ids
                     "telegram-listen-ids": None,     # Telegram listen ids
@@ -94,6 +95,13 @@ class Supervisor(ChimeraObject):
                 else:
                     for i, ainstrument in enumerate(self._instrument_list[instrument]):
                         self._operationStatus[instrument+'_%02i' % (i+1)] = InstrumentOperationFlag.UNSET
+
+        # Configure general controller list
+        if self["controllers"] is not None:
+            controllers_list = self["controllers"].split(",")
+            for controller in controllers_list:
+                self._operationStatus[controller] = InstrumentOperationFlag.UNSET
+
 
         self.checklist = CheckList(self)
         self.machine = Machine(self.checklist, self)
