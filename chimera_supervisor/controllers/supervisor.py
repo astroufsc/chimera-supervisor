@@ -330,7 +330,7 @@ class Supervisor(ChimeraObject):
                                                                            key))
 
     def telegramSet(self, bot, update):
-        self.debuglog('TelegramSet got: %s' % str(update.message.text))
+        self.debuglog.debug('TelegramSet got: %s' % str(update.message.text))
         try:
             instrument, flag = str(update.message.text).split(" ")[1:3]
         except:
@@ -340,15 +340,16 @@ class Supervisor(ChimeraObject):
         try:
             old_flag = self.getFlag(instrument)
             if old_flag != InstrumentOperationFlag.LOCK:
-                bot.sendMessage('Setting %s flag: %s -> %s' % (instrument, old_flag, flag))
+                bot.sendMessage(update.message.chat_id, 'Setting %s flag: %s -> %s' % (instrument, old_flag, flag))
                 self.setFlag(instrument, InstrumentOperationFlag.fromStr(flag.upper()))
             else:
-                bot.sendMessage("Instrument %s is locked. Unlock it first before trying to set flag." % instrument)
+                bot.sendMessage(update.message.chat_id,
+                                "Instrument %s is locked. Unlock it first before trying to set flag." % instrument)
                 return
         except:
-            bot.sendMessage('Could not set flag %s on %s' % (flag, instrument))
+            bot.sendMessage(update.message.chat_id, 'Could not set flag %s on %s' % (flag, instrument))
         else:
-            bot.sendMessage('%s status now: %s' % (instrument, self.getFlag(instrument)))
+            bot.sendMessage(update.message.chat_id, '%s status now: %s' % (instrument, self.getFlag(instrument)))
         # instrument_key_list = self.getInstrumentKey(instrument)
         # if key in instrument_key_list:
         #     try:
