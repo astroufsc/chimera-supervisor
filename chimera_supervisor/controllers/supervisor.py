@@ -186,7 +186,7 @@ class Supervisor(ChimeraObject):
             self.updater.dispatcher.add_handler(telegram.ext.CommandHandler('info', self.telegramInfo))
             self.updater.dispatcher.add_handler(telegram.ext.CommandHandler('lock', self.telegramLock))
             self.updater.dispatcher.add_handler(telegram.ext.CommandHandler('unlock', self.telegramUnLock))
-            self.updater.dispatcher.add_handler(telegram.ext.CommandHandler('set', self.telegramSet))
+            self.updater.dispatcher.add_handler(telegram.ext.CommandHandler('setflag', self.telegramSet))
             self.updater.dispatcher.add_handler(telegram.ext.CommandHandler('help', self.telegramHelp))
             # self.updater.dispatcher.addErrorHandler(error)
 
