@@ -390,7 +390,7 @@ class Supervisor(ChimeraObject):
 /info - Get current manager state.
 /lock [instrument] [key] - lock instrument with specified key
 /unlock [instrument] [key] - unlock instrument with specified key (use with care!)
-/setflag [instrument] [key] - Set instrument flag. Valid flags %s
+/setflag [instrument] [flag] - Set instrument flag. Valid flags %s
 /help - Show this help page.
         ''' % flags_list
         bot.sendMessage(update.message.chat_id, text=helpMSG)
