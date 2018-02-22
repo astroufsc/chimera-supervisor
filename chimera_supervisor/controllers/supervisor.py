@@ -337,9 +337,9 @@ class Supervisor(ChimeraObject):
             bot.sendMessage(update.message.chat_id, text="Could not parse input string \"%s\"." % update.message.text)
             return
         flags_list = ''
-        for flag in InstrumentOperationFlag:
-            if flag != InstrumentOperationFlag.LOCK:
-                flags_list += '%s ' % flag
+        for _flag in InstrumentOperationFlag:
+            if _flag != InstrumentOperationFlag.LOCK:
+                flags_list += '%s ' % _flag
 
         try:
             old_flag = self.getFlag(instrument)
