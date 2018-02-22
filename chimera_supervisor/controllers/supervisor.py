@@ -330,6 +330,7 @@ class Supervisor(ChimeraObject):
                                                                            key))
 
     def telegramSet(self, bot, update):
+        self.debuglog('TelegramSet got: %s' % str(update.message.text))
         try:
             instrument, flag = str(update.message.text).split(" ")[1:3]
         except:
