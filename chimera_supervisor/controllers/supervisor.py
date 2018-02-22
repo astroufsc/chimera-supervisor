@@ -336,18 +336,28 @@ class Supervisor(ChimeraObject):
         except:
             bot.sendMessage(update.message.chat_id, text="Could not parse input string \"%s\"." % update.message.text)
             return
+        flags_list = ''
+        for flag in InstrumentOperationFlag:
+            if flag != InstrumentOperationFlag.LOCK:
+                flags_list += '%s ' % flag
 
         try:
             old_flag = self.getFlag(instrument)
-            if old_flag != InstrumentOperationFlag.LOCK:
+            new_flag = InstrumentOperationFlag.fromStr(flag.upper())
+            if old_flag != InstrumentOperationFlag.LOCK and new_flag != InstrumentOperationFlag.LOCK:
                 bot.sendMessage(update.message.chat_id, 'Setting %s flag: %s -> %s' % (instrument, old_flag, flag))
-                self.setFlag(instrument, InstrumentOperationFlag.fromStr(flag.upper()))
+                self.setFlag(instrument, new_flag)
+            elif new_flag == InstrumentOperationFlag.LOCK:
+                bot.sendMessage(update.message.chat_id, 'To lock an instrument use the /lock command. '
+                                                        'Valid flags are: %s' % flags_list)
             else:
                 bot.sendMessage(update.message.chat_id,
                                 "Instrument %s is locked. Unlock it first before trying to set flag." % instrument)
                 return
         except:
-            bot.sendMessage(update.message.chat_id, 'Could not set flag %s on %s' % (flag, instrument))
+            bot.sendMessage(update.message.chat_id, 'Could not set flag %s on %s. Valid list %s' % (flag,
+                                                                                                    instrument,
+                                                                                                    flags_list))
         else:
             bot.sendMessage(update.message.chat_id, '%s status now: %s' % (instrument, self.getFlag(instrument)))
         # instrument_key_list = self.getInstrumentKey(instrument)
