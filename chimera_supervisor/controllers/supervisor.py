@@ -379,15 +379,20 @@ class Supervisor(ChimeraObject):
         #                                                                    key))
 
     def telegramHelp(self, bot, update):
+        flags_list = ''
+        for _flag in InstrumentOperationFlag:
+            if _flag != InstrumentOperationFlag.LOCK:
+                flags_list += '%s ' % _flag
+
         helpMSG = '''Commands:
 /list - List current available actions.
 /run [action] - Run specific action from command list.
 /info - Get current manager state.
 /lock [instrument] [key] - lock instrument with specified key
 /unlock [instrument] [key] - unlock instrument with specified key (use with care!)
-/setflag [instrument] [key] - Set instrument flag
+/setflag [instrument] [key] - Set instrument flag. Valid flags %s
 /help - Show this help page.
-        '''
+        ''' % flags_list
         bot.sendMessage(update.message.chat_id, text=helpMSG)
 
     def isTelegramConnected(self):
