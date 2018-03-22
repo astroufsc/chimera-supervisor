@@ -26,17 +26,18 @@ class Higher(BaseScheduleAlgorith):
 
         pool_size = 1
         max_sched_blocks = -1
-        if 'config' in kwargs:
-            config = kwargs['config']
-            if 'pool_size' in config:
-                pool_size = config['pool_size']
-
-            if 'slotLen' in config:
-                slotLen = config['slotLen']
-
-
-            if 'max_sched_blocks' in config:
-                max_sched_blocks = config['max_sched_blocks']
+        # TODO: move this to the db!
+        # if 'config' in kwargs:
+        #     config = kwargs['config']
+        #     if 'pool_size' in config:
+        #         pool_size = config['pool_size']
+        #
+        #     if 'slotLen' in config:
+        #         slotLen = config['slotLen']
+        #
+        #
+        #     if 'max_sched_blocks' in config:
+        #         max_sched_blocks = config['max_sched_blocks']
 
         nightstart = kwargs['obsStart']
         nightend   = kwargs['obsEnd']
