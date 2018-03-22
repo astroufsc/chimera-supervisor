@@ -6,9 +6,8 @@ project:
   priority: 21
 observing_blocks:
   block 1:
-    id: 0
-    pid: TEST
-    maxairmass: 3.0
+    name: first_block
+    maxairmass: 2.0
     minairmass: -1
     maxmoonBright: 100.
     minmoonBright: 00.
