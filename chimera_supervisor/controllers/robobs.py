@@ -341,7 +341,7 @@ class RobObs(ChimeraObject):
 
         if program is not None:
             # program = session.merge(program)
-            if ( (not program[0].slewAt) and (self.checkConditions(program, nowmjd, plen))):
+            if (not program[0].slewAt) and (self.checkConditions(program, nowmjd, plen)):
                 # Program should be done right away!
                 session.commit()
                 session.close()
@@ -513,7 +513,7 @@ class RobObs(ChimeraObject):
                 return program,dT
 
 
-        self.log.warning('No program found...')
+        self._debuglog.debug('No program found...')
         session.commit()
         session.close()
         return None,0.

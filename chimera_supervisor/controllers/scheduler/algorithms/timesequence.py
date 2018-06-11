@@ -86,17 +86,16 @@ class TimeSequence(BaseScheduleAlgorith):
 
         radecPos = np.array([0])
 
-        blockid = targets[:][0][0].blockid
+        blockid = targets[:][0][0].id
 
         for itr,target in enumerate(targets):
-            if blockid != target[0].blockid:
+            if blockid != target[0].id:
                 radecArray =  np.append(radecArray,Position.fromRaDec(target[2].targetRa,
                                                                       target[2].targetDec))
-                blockid = target[0].blockid
+                blockid = target[0].id
                 radecPos = np.append(radecPos,itr)
 
-
-        mask = np.zeros(len(radecArray)) == 0
+        mask = np.ones(len(radecArray), dtype=bool)
         nblocks_scheduled = 0
 
         for itr in range(len(obsSlots)):
@@ -212,7 +211,7 @@ class TimeSequence(BaseScheduleAlgorith):
                 # so it can be scheduled again in the next slot, in case it is also the best one, thus building a
                 # time monitoring sequence.
 
-                obsSlots['blockid'][itr] = s_target[0].blockid
+                obsSlots['blockid'][itr] = s_target[0].id
                 nblocks_scheduled += 1
                 if max_sched_blocks > 0 and nblocks_scheduled >= max_sched_blocks:
                     log.info('Maximum number of scheduled blocks (%i) reached. Stopping.' % max_sched_blocks)
@@ -220,7 +219,7 @@ class TimeSequence(BaseScheduleAlgorith):
 
 
                 # Check if this block has more targets...
-                secTargets = targets.filter(ObsBlock.blockid == s_target[0].blockid,
+                secTargets = targets.filter(ObsBlock.id == s_target[0].id,
                                             ObsBlock.objid != s_target[0].objid)
 
                 if secTargets.count() > 0:
