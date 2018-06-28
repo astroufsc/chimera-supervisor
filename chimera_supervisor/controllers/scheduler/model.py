@@ -220,7 +220,6 @@ class Program(Base):
 
     id = Column(Integer, primary_key=True)
     tid = Column(Integer, ForeignKey('targets.id'))
-    pi = Column(String(length=65), default="Anonymous Investigator")
 
     priority = Column(Integer, default=0)
 
@@ -236,10 +235,8 @@ class Program(Base):
     blockpar_id = Column(Integer, ForeignKey("blockpar.id"))  # BlockPar ID
 
     def __str__(self):
-        return "#%d :%s pi:%s [obsblock: %i|blockpar: %i | target: %i]" % (self.id,
+        return "#%d :%s [obsblock: %i|blockpar: %i | target: %i]" % (self.id,
                                                                              self.pid,
-                                                                             # self.name,
-                                                                             self.pi,
                                                                              self.obsblock_id,
                                                                              self.blockpar_id,
                                                                              self.tid)
@@ -247,8 +244,10 @@ class Program(Base):
     def chimeraProgram(self):
         cp = CProgram()
 
+        project = Session().query(Projects).filter(Projects.id == self.pid).first()
+        cp.pi       = project.pi
+        cp.name     = project.pid
         cp.tid      = self.tid
-        cp.pi       = self.pi
         cp.priority = self.priority
         cp.createdAt= self.createdAt
         cp.finished = self.finished
@@ -266,9 +265,7 @@ class ObservingLog(Base):
     action = Column(String(length=65))
 
     def __str__(self):
-        return '%s P%s Action: %s' % ( self.time,
-                                              self.priority,
-                                              self.action)
+        return '%s Action: %s' % ( self.time, self.action)
 
 class Targets(Base):
     __tablename__ = "targets"
