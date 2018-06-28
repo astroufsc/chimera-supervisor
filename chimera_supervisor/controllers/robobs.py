@@ -176,7 +176,6 @@ class RobObs(ChimeraObject):
 
             log = ObservingLog(time=datetimeFromJD(site.MJD()+2400000.5,),
                                  tid=program.tid,
-                                 name=program.name,
                                  action='ROBOBS: Program End with status %s(%s)' % (status,
                                                                                     message))
             rsession.add(log)
@@ -376,16 +375,19 @@ class RobObs(ChimeraObject):
             # [TO-CHECK] try again.
             session.commit()
             session.close()
+            self._debuglog.debug("Program is None.")
             return None
         checktime = nowmjd if nowmjd > program[0].slewAt else program[0].slewAt
         if not self.checkConditions(program,checktime,plen):
             session.commit()
             session.close()
+            self._debuglog.debug("checkConditions is False.")
             return None
 
-        self._debuglog.info('Choose program with priority %i'%priority)
+        self._debuglog.info('Choose program with priority %i' % priority)
         session.commit()
         session.close()
+        self._debuglog.debug("Return program...")
         return program
 
     def getProgram(self, nowmjd, priority):
@@ -403,6 +405,7 @@ class RobObs(ChimeraObject):
             Targets, Program.tid == Targets.id).filter(Program.priority == priority,
                                                        Program.finished == False).order_by(Program.slewAt)
 
+        self._debuglog.debug("Found %i programs." % programs.count())
         schedAlgList = np.array([t[1].schedalgorith for t in programs])
         unique_shed_algorithm_list = np.unique(schedAlgList)
 
@@ -562,7 +565,7 @@ class RobObs(ChimeraObject):
             # Todo: add a 3rd option which is a function to check if program is ok from the algorithm itself.
             pass
 
-        self._debuglog.debug('Target OK!')
+        self._debuglog.debug('Target %s OK!' % target)
 
         return True
 
@@ -577,8 +580,7 @@ class RobObs(ChimeraObject):
                 inst_manager = self.getManager().getProxy(self['site'])
                 setattr(algorithm,'site',inst_manager)
             except Exception, e:
-                self.log.error('Could not inject %s on %s handler' % ('site',
-                                                                         algorithm))
+                self.log.error('Could not inject %s on %s handler' % ('site', algorithm))
                 self.log.exception(e)
 
 
