@@ -8,6 +8,7 @@ setup(
     scripts=['scripts/chimera-supervisor', 'scripts/chimera-robobs'],
     url='http://github.com/astroufsc/chimera-supervisor',
     license='GPL v2',
+    install_requires=["mysql", "python-telegram-bot", "matplotlib"],
     author='Tiago Ribeiro',
     author_email='tribeiro@ufs.br',
     description='Observatory manager for chimera.'
