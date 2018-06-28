@@ -19,6 +19,7 @@ from chimera.core.event import event
 from chimera.controllers.scheduler.states import State as SchedState
 from chimera.controllers.scheduler.status import SchedulerStatus
 from chimera.controllers.scheduler import model
+from chimera.controllers.scheduler.model import Program as CProgram
 from chimera.util.position import Position
 from chimera.util.coord import Coord
 from chimera.util.enum import Enum
@@ -85,6 +86,9 @@ class RobObs(ChimeraObject):
         self._debuglog.debug("Switching robstate on...")
         self.rob_state = RobState.ON
 
+        # Clean scheduler to remove old observations #
+        self.reset_scheduler()
+
         return True
 
     def stop(self):
@@ -98,20 +102,13 @@ class RobObs(ChimeraObject):
         self.machine.state(SchedState.START)
 
     def reset_scheduler(self):
-        csession = model.Session()
+        session = model.Session()
 
-        cprog = model.Program(  name =  "RESET",
-                                pi = "ROBOBS",
-                                priority = 1 )
-        cleanProgram = model.Expose()
-        cleanProgram.frames = 1
-        cleanProgram.exptime = 0
-        cleanProgram.imageType = "BIAS"
-        cleanProgram.shutter = "CLOSE"
-        cleanProgram.filename = "RESET-$DATE-$TIME"
-        cprog.actions.append(cleanProgram)
+        programs = session.query(CProgram).all()
+        for program in programs:
+            session.delete(program)
 
-        csession.add(cprog)
+        session.commit()
 
     def getSite(self):
         return self.getManager().getProxy(self["site"])
