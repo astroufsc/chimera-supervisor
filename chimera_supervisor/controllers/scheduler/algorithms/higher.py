@@ -1,5 +1,5 @@
-
 from chimera_supervisor.controllers.scheduler.algorithms.base import *
+
 
 class Higher(BaseScheduleAlgorith):
 
@@ -12,7 +12,7 @@ class Higher(BaseScheduleAlgorith):
         return 0
 
     @staticmethod
-    def process(*args,**kwargs):
+    def process(*args, **kwargs):
         log = logging.getLogger('sched-algorith(higher)')
         log.addHandler(fileHandler)
         slotLen = 60.
@@ -46,22 +46,22 @@ class Higher(BaseScheduleAlgorith):
                 past_meridian_only = False
 
         nightstart = kwargs['obsStart']
-        nightend   = kwargs['obsEnd']
+        nightend = kwargs['obsEnd']
         site = kwargs['site']
 
         # Creat observation slots.
 
-        obsSlots = np.array(np.arange(nightstart,nightend,slotLen/60./60./24.),
-                            dtype= [ ('start',np.float),
-                                     ('end',np.float)  ,
-                                     ('slotid',np.int) ,
-                                     ('blockid',np.int)] )
+        obsSlots = np.array(np.arange(nightstart, nightend, slotLen / 60. / 60. / 24.),
+                            dtype=[('start', np.float),
+                                   ('end', np.float),
+                                   ('slotid', np.int),
+                                   ('blockid', np.int)])
 
-        log.debug('Creating %i observing slots'%(len(obsSlots)))
+        log.debug('Creating %i observing slots' % (len(obsSlots)))
 
-        obsSlots['end'] += slotLen/60./60/24.
+        obsSlots['end'] += slotLen / 60. / 60 / 24.
         obsSlots['slotid'] = np.arange(len(obsSlots))
-        obsSlots['blockid'] = np.zeros(len(obsSlots))-1
+        obsSlots['blockid'] = np.zeros(len(obsSlots)) - 1
 
         # For each slot select the higher in the sky...
 
@@ -70,25 +70,25 @@ class Higher(BaseScheduleAlgorith):
         radecArray = np.array([Position.fromRaDec(targets[:][0][2].targetRa,
                                                   targets[:][0][2].targetDec)])
 
-        moonPar = np.array([( target[1].minmoonDist,
-                              target[1].minmoonBright ,
-                              target[1].maxmoonBright,
-                              target[0].length) for target in targets[:]],
-                           dtype=[('minmoonDist',np.float),
-                                  ('minmoonBright',np.float),
-                                  ('maxmoonBright',np.float),
-                                  ('length',np.float)])
+        moonPar = np.array([(target[1].minmoonDist,
+                             target[1].minmoonBright,
+                             target[1].maxmoonBright,
+                             target[0].length) for target in targets[:]],
+                           dtype=[('minmoonDist', np.float),
+                                  ('minmoonBright', np.float),
+                                  ('maxmoonBright', np.float),
+                                  ('length', np.float)])
 
         radecPos = np.array([0])
 
         blockid = targets[:][0][0].id
 
-        for itr,target in enumerate(targets):
+        for itr, target in enumerate(targets):
             if blockid != target[0].id:
-                radecArray =  np.append(radecArray,Position.fromRaDec(target[2].targetRa,
+                radecArray = np.append(radecArray, Position.fromRaDec(target[2].targetRa,
                                                                       target[2].targetDec))
                 blockid = target[0].id
-                radecPos = np.append(radecPos,itr)
+                radecPos = np.append(radecPos, itr)
 
         mask = np.ones(len(radecArray), dtype=bool)
         nblocks_scheduled = 0
@@ -100,27 +100,27 @@ class Higher(BaseScheduleAlgorith):
 
                 dateTime = datetimeFromJD(obsSlots['start'][itr])
 
-                lst = site.LST_inRads(dateTime) # in radians
+                lst = site.LST_inRads(dateTime)  # in radians
 
                 # This loop is really slow! Must think of a way to speed
                 # things up...
 
                 # Apply moon exclusion radius..
                 moonPos = site.moonpos(dateTime)
-                moonRaDec = site.altAzToRaDec(moonPos,lst)
+                moonRaDec = site.altAzToRaDec(moonPos, lst)
 
-                moonBrightness = site.moonphase(dateTime)*100.
+                moonBrightness = site.moonphase(dateTime) * 100.
 
                 if (
-                    (not (moonPar['minmoonBright'].max() <= moonBrightness <= moonPar['maxmoonBright'].min())) and
+                        (not (moonPar['minmoonBright'].max() <= moonBrightness <= moonPar['maxmoonBright'].min())) and
                         (moonPos.alt > 0.)
-                    ):
+                ):
                     log.warning('Slot[%03i]: Moon brightness (%5.1f%%) out of range (%5.1f%% -> %5.1f%%). \
-    Moon alt. = %6.2f. Skipping this slot...'%(itr+1,
-                                      moonBrightness,
-                                      moonPar['minmoonBright'].max(),
-                                      moonPar['maxmoonBright'].min(),
-                                      moonPos.alt))
+    Moon alt. = %6.2f. Skipping this slot...' % (itr + 1,
+                                                 moonBrightness,
+                                                 moonPar['minmoonBright'].max(),
+                                                 moonPar['maxmoonBright'].min(),
+                                                 moonPos.alt))
                     continue
 
                 # Calculate target parameters
@@ -139,13 +139,13 @@ class Higher(BaseScheduleAlgorith):
                         time_offset = Coord.fromAS(moonPar['length'][index])
                         log.debug('%s %s %s' % (lst, time_offset.R, time_offset.H))
                         targetPar[index] = (
-                            float(site.raDecToAltAz(radecArray[index],lst+time_offset.R/2.).alt),
-                            float(site.raDecToAltAz(radecArray[index],lst).alt),
-                            float(site.raDecToAltAz(radecArray[index],lst+time_offset.R).alt),
+                            float(site.raDecToAltAz(radecArray[index], lst + time_offset.R / 2.).alt),
+                            float(site.raDecToAltAz(radecArray[index], lst).alt),
+                            float(site.raDecToAltAz(radecArray[index], lst + time_offset.R).alt),
                             radecArray[index].angsep(moonRaDec),
                             moonPar['minmoonDist'][index],
                             (((moonPar['minmoonBright'][index] <= moonBrightness <= moonPar['maxmoonBright'][index])
-                             or (moonPos.alt < 0.)) and (lst > radecArray[index].ra.R if past_meridian_only else True))
+                              or (moonPos.alt < 0.)) and (lst > radecArray[index].ra.R if past_meridian_only else True))
                         )
                     except Exception, e:
                         log.exception(e)
@@ -153,7 +153,7 @@ class Higher(BaseScheduleAlgorith):
                 pool = Pool(pool_size)
 
                 for i in range(len(radecArray)):
-                    pool.apply_async(worker,(i,))
+                    pool.apply_async(worker, (i,))
 
                 log.debug('Starting pool')
                 pool.close()
@@ -161,7 +161,7 @@ class Higher(BaseScheduleAlgorith):
                 log.debug('Pool done')
 
                 # Create moon mask
-                moonMask = np.bitwise_and(targetPar['moonD'] > targetPar['minmoonD'],targetPar['mask_moonBright'])
+                moonMask = np.bitwise_and(targetPar['moonD'] > targetPar['minmoonD'], targetPar['mask_moonBright'])
 
                 # guarantee it is a copy not a reference...
                 mapping = np.arange(len(mask))[moonMask]
@@ -169,7 +169,7 @@ class Higher(BaseScheduleAlgorith):
                 tmp_radecPos = np.array(radecPos[moonMask], copy=True)
 
                 if len(tmp_radecArray) == 0:
-                    log.warning('Slot[%03i]: Could not find suitable target'%(itr+1))
+                    log.warning('Slot[%03i]: Could not find suitable target' % (itr + 1))
                     continue
 
                 alt = targetPar['altitude'][moonMask]
@@ -178,21 +178,21 @@ class Higher(BaseScheduleAlgorith):
                 end_alt = targetPar['end_altitude'][moonMask][stg]
 
                 # Check airmass
-                airmass = 1./np.cos(np.pi/2.-alt[stg]*np.pi/180.)
-                start_airmass = 1./np.cos(np.pi/2.-start_alt*np.pi/180.)
-                end_airmass = 1./np.cos(np.pi/2.-end_alt*np.pi/180.)
+                airmass = 1. / np.cos(np.pi / 2. - alt[stg] * np.pi / 180.)
+                start_airmass = 1. / np.cos(np.pi / 2. - start_alt * np.pi / 180.)
+                end_airmass = 1. / np.cos(np.pi / 2. - end_alt * np.pi / 180.)
                 # Since this is the highest at this time, doesn't make
                 # sense to iterate over it
                 if start_airmass > targets[:][radecPos[stg]][1].maxairmass or \
-                                end_airmass > targets[:][radecPos[stg]][1].maxairmass or airmass < 0. or start_alt < 0.:
+                        end_airmass > targets[:][radecPos[stg]][1].maxairmass or airmass < 0. or start_alt < 0.:
                     log.info('Object too low in the sky, (Alt.=%6.2f) airmass = %5.2f/%5.2f/%5.2f (max = %5.2f)... '
                              'Skipping this slot..' % (alt[stg], start_airmass, airmass, end_airmass,
-                                                     targets[:][radecPos[stg]][1].maxairmass))
+                                                       targets[:][radecPos[stg]][1].maxairmass))
                     continue
 
                 s_target = targets[tmp_radecPos[stg]]
 
-                log.info('Slot[%03i] @%.3f: %s %s (Alt.=%6.2f, airmass=%5.2f (max=%5.2f))' % (itr+1,
+                log.info('Slot[%03i] @%.3f: %s %s (Alt.=%6.2f, airmass=%5.2f (max=%5.2f))' % (itr + 1,
                                                                                               obsSlots['start'][itr],
                                                                                               s_target[0],
                                                                                               s_target[2],
@@ -210,7 +210,6 @@ class Higher(BaseScheduleAlgorith):
                     log.info('Maximum number of scheduled blocks (%i) reached. Stopping.' % max_sched_blocks)
                     break
 
-
                 # Check if this block has more targets...
                 secTargets = targets.filter(ObsBlock.id == s_target[0].id,
                                             ObsBlock.objid != s_target[0].objid)
@@ -222,34 +221,35 @@ class Higher(BaseScheduleAlgorith):
                 if len(mask) == 0:
                     break
             else:
-                log.warning('Observing slot[%i]@%.4f is already filled with block id %i...'%(itr,
-                                                                                             obsSlots['start'][itr],
-                                                                                             obsSlots['blockid'][itr]))
+                log.warning('Observing slot[%i]@%.4f is already filled with block id %i...' % (itr,
+                                                                                               obsSlots['start'][itr],
+                                                                                               obsSlots['blockid'][
+                                                                                                   itr]))
 
         return obsSlots
 
     @staticmethod
     def next(time, programs):
 
-        dt = np.array([ np.abs(time - program[0].slewAt) for program in programs])
+        dt = np.array([np.abs(time - program[0].slewAt) for program in programs])
         iprog = np.argmin(dt)
         return programs[iprog]
 
     @staticmethod
-    def observed(time, program, site = None, soft = False):
-        '''
+    def observed(time, program, site=None, soft=False):
+        """
         Process program as observed.
 
         :param program:
         :return:
-        '''
+        """
         session = Session()
         prog = session.merge(program[0])
         prog.finished = True
         obsblock = session.merge(program[2])
         obsblock.observed = True
         if not soft:
-            obsblock.completed= True
+            obsblock.completed = True
             obsblock.lastObservation = site.ut().replace(tzinfo=None)
         session.commit()
         session.close()

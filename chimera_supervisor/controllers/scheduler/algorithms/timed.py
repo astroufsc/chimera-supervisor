@@ -1,12 +1,12 @@
-
 from chimera_supervisor.controllers.scheduler.algorithms.base import *
 from chimera_supervisor.controllers.scheduler.algorithms.higher import Higher
+from chimera_supervisor.controllers.scheduler.model import Projects
+
 
 class Timed(BaseScheduleAlgorith):
-
-    '''
+    """
     Provide scheduler algorithm for observations at specific times (in seconds) with respect to night start twilight.
-    '''
+    """
 
     @staticmethod
     def name():
@@ -17,7 +17,7 @@ class Timed(BaseScheduleAlgorith):
         return 2
 
     @staticmethod
-    def process(*args,**kwargs):
+    def process(*args, **kwargs):
         log = logging.getLogger('sched-algorith(timed)')
         log.addHandler(fileHandler)
 
@@ -28,11 +28,10 @@ class Timed(BaseScheduleAlgorith):
         config = kwargs['config']
 
         nightstart = kwargs['obsStart']
-        nightend   = kwargs['obsEnd']
-
+        nightend = kwargs['obsEnd']
 
         for i in range(len(config['times'])):
-            execute_at = nightstart-2400000.5+(config['times'][i]/24.)
+            execute_at = nightstart - 2400000.5 + (config['times'][i] / 24.)
             config['times'][i] = execute_at
 
         slotLen = 1800.
@@ -45,7 +44,7 @@ class Timed(BaseScheduleAlgorith):
                 slotLen = 1800.
 
         # Select targets with the Higher algorithm
-        programs = Higher.process(slotLen=slotLen,*args,**kwargs)
+        programs = Higher.process(slotLen=slotLen, *args, **kwargs)
 
         session = Session()
         # Store desired times in the database
@@ -57,7 +56,7 @@ class Timed(BaseScheduleAlgorith):
                 print('Requesting observation @ %.3f' % obs_times)
                 # FIXME: move out from config execute_at and config['pid']
                 pid = session.query(Projects).filter(Projects.pid == config['pid']).first().id
-                timed = TimedDB(pid = pid, execute_at=obs_times)
+                timed = TimedDB(pid=pid, execute_at=obs_times)
                 # FIXME: end
                 session.add(timed)
             return programs
@@ -65,22 +64,21 @@ class Timed(BaseScheduleAlgorith):
             session.commit()
             session.close()
 
-
     @staticmethod
-    def next(time,programs):
+    def next(time, programs):
 
         session = Session()
 
         try:
             program = session.merge(programs[0][0])
             timed_observation = session.query(TimedDB).filter(TimedDB.finished == False,
-                                                               TimedDB.pid == program.pid).order_by(
+                                                              TimedDB.pid == program.pid).order_by(
                 TimedDB.execute_at).first()
 
             if timed_observation is None:
                 return None
 
-            program_list = Higher.next(time,programs)
+            program_list = Higher.next(time, programs)
 
             program = session.merge(program_list[0])
 
@@ -99,7 +97,7 @@ class Timed(BaseScheduleAlgorith):
             session.close()
 
     @staticmethod
-    def observed(time, program, site = None, soft = False):
+    def observed(time, program, site=None, soft=False):
 
         session = Session()
 
@@ -125,11 +123,11 @@ class Timed(BaseScheduleAlgorith):
             session.close()
 
     @staticmethod
-    def soft_clean(pid,block=None):
-        '''
+    def soft_clean(pid, block=None):
+        """
         Soft clean any schedule routine. This will only erase information about observations.
         :return:
-        '''
+        """
         session = Session()
 
         try:
@@ -146,10 +144,10 @@ class Timed(BaseScheduleAlgorith):
 
     @staticmethod
     def clean(pid):
-        '''
+        """
         Hard clean any schedule routine. Wipe all information from database
         :return:
-        '''
+        """
         session = Session()
 
         try:

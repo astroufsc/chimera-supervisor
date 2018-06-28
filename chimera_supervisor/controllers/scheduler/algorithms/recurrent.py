@@ -1,13 +1,13 @@
-
 from chimera_supervisor.controllers.scheduler.algorithms.base import *
 from chimera_supervisor.controllers.scheduler.algorithms.higher import Higher
+from chimera_supervisor.controllers.scheduler.model import ObsBlock
+
 
 class Recurrent(BaseScheduleAlgorith):
-
-    '''
+    """
     Provide scheduler algorithm for recurrent observations. Targets are only scheduled if they where never observed
     or observed a specified time in the past.
-    '''
+    """
 
     @staticmethod
     def name():
@@ -39,7 +39,7 @@ class Recurrent(BaseScheduleAlgorith):
                 slotLen = 1800.
         elif 'slotLen' in config:
             slotLen = config['slotLen']
-        from chimera_supervisor.controllers.scheduler.model import Targets,ObsBlock
+
         # Filter target by observing data. Leave "NeverObserved" and those observed more than recurrence_time days ago
         if 'today' in kwargs:  # FIXME: ???? Needed for simulations...
             today = kwargs['today'].replace(tzinfo=None)
@@ -66,13 +66,13 @@ class Recurrent(BaseScheduleAlgorith):
 
     @staticmethod
     def next(time, programs):
-        '''
+        """
         Select the program to observe with this scheduling algorithm.
 
         :param time:
         :param programs:
         :return:
-        '''
+        """
 
         return Higher.next(time, programs)
 
@@ -100,12 +100,12 @@ class Recurrent(BaseScheduleAlgorith):
 
     @staticmethod
     def observed(time, program, site=None, soft=False):
-        '''
+        """
         Process program as observed.
 
         :param program:
         :return:
-        '''
+        """
         log = logging.getLogger('sched-algorith(recurrent.observed)')
         log.addHandler(fileHandler)
 
