@@ -27,10 +27,11 @@ if os.path.exists(DEFAULT_ROBOBS_DATABASE_CONFIG):
             database_config = yaml.load(stream)
             if "mysql" in database_config['database']:
                 # print 'mysql'
-                engine = create_engine(database_config['database'], echo=False, poolclass=NullPool) #, pool_pre_ping=True) #, pool_size = 20, max_overflow = 0)
+                engine = create_engine(database_config['database'], echo=False, poolclass=NullPool)
 
                 # To Avoid MySQL-specific rounding problems #
                 from sqlalchemy.dialects.mysql import DOUBLE
+
                 Float = DOUBLE(asdecimal=False)
 
             else:
@@ -62,6 +63,7 @@ Base = declarative_base(metadata=metaData)
 
 import datetime as dt
 
+
 class ExtMoniDB(Base):
     __tablename__ = 'extmonidb'
 
@@ -72,10 +74,10 @@ class ExtMoniDB(Base):
     pid = Column(Integer, ForeignKey("projects.id"))
     tid = Column(Integer, ForeignKey('targets.id'))
 
-    observed_am   = relation("ObservedAM", backref=backref("extmonidb", order_by="ObservedAM.id"),
-                         cascade="all, delete, delete-orphan")
+    observed_am = relation("ObservedAM", backref=backref("extmonidb", order_by="ObservedAM.id"),
+                           cascade="all, delete, delete-orphan")
 
-    def __init__(self, pid=None,tid=None,nairmass=1):
+    def __init__(self, pid=None, tid=None, nairmass=1):
         Base.__init__(self)
 
         self.pid = pid
@@ -83,10 +85,10 @@ class ExtMoniDB(Base):
         self.nairmass = nairmass
 
     def __str__(self):
-        return 'extmonidb[%s:%i]: %i/%i' % (self.pid,self.tid,len(self.observed_am),self.nairmass)
+        return 'extmonidb[%s:%i]: %i/%i' % (self.pid, self.tid, len(self.observed_am), self.nairmass)
+
 
 class ObservedAM(Base):
-
     __tablename__ = 'observedam'
 
     id = Column(Integer, ForeignKey('extmonidb.id'), primary_key=True)
@@ -94,11 +96,12 @@ class ObservedAM(Base):
     airmass = Column(Float, primary_key=True)
     altitude = Column(Float, primary_key=True)
 
-    def __init__(self,airmass=1.,altitude=90.):
+    def __init__(self, airmass=1., altitude=90.):
         Base.__init__(self)
 
-        self.airmass=airmass
-        self.altitude=altitude
+        self.airmass = airmass
+        self.altitude = altitude
+
 
 class TimedDB(Base):
     __tablename__ = 'timeddb'
@@ -114,7 +117,7 @@ class TimedDB(Base):
     finished = Column(Boolean, default=False)
     scheduled = Column(Boolean, default=False)
 
-    def __init__(self, pid=None, execute_at = None):
+    def __init__(self, pid=None, execute_at=None):
         Base.__init__(self)
 
         if pid is not None:
@@ -123,10 +126,11 @@ class TimedDB(Base):
             self.execute_at = execute_at
 
     def __str__(self):
-        return '[timed:%s] execute@: %.3f [%s]' % (self.execute_at,self.pid,
+        return '[timed:%s] execute@: %.3f [%s]' % (self.execute_at, self.pid,
                                                    'block:%i @%.3f' % (self.blockid,
-                                                                      self.observed_at)
+                                                                       self.observed_at)
                                                    if self.finished else 'pending')
+
 
 class RecurrentDB(Base):
     __tablename__ = 'recurrent'
@@ -137,9 +141,9 @@ class RecurrentDB(Base):
     blockid = Column(Integer, ForeignKey("obsblock.id"))
     tid = Column(Integer, ForeignKey('targets.id'))
 
-    visits = Column(Integer,default=0)
-    max_visits = Column(Integer,default=0) # 0 means unrestricted
-    lastVisit = Column(DateTime, default = None)
+    visits = Column(Integer, default=0)
+    max_visits = Column(Integer, default=0)  # 0 means unrestricted
+    lastVisit = Column(DateTime, default=None)
 
     def __str__(self):
         return '[Recurrent:%s] visits: %i lastVisit: %s]' % (self.pid, self.visits, self.lastVisit)
@@ -152,28 +156,29 @@ class ObsBlock(Base):
     bparid = Column(Integer, ForeignKey("blockpar.id"))
     pid = Column(Integer, ForeignKey("projects.id"))
     observed = Column(Boolean, default=False)
-    completed= Column(Boolean, default=False)
+    completed = Column(Boolean, default=False)
     lastObservation = Column(DateTime, default=None)
     scheduled = Column(Boolean, default=False)
     length = Column(Float, default=0.)  # Store block length in seconds
-    actions   = relation("Action", backref=backref("obsblock", order_by="Action.id"),
-                         cascade="all, delete, delete-orphan")
+    actions = relation("Action", backref=backref("obsblock", order_by="Action.id"),
+                       cascade="all, delete, delete-orphan")
 
     def __str__(self):
         if self.observed:
             return "#%i %s[%i] [lastObserved: %s%s%s]: with %i actions." % (self.id,
-                                                                                  self.pid,
-                                                                                  self.objid,
-                                                                                  self.lastObservation,
+                                                                            self.pid,
+                                                                            self.objid,
+                                                                            self.lastObservation,
                                                                             "| status: scheduled" if self.scheduled else "",
                                                                             "| status: completed" if self.completed else "",
                                                                             len(self.actions))
 
         else:
             return "#%i %s[%i] [#NeverObserved%s]: with %i actions." % (self.id, self.pid,
-                                                                                self.objid,
-                                                                                "| status: scheduled" if self.scheduled else "",
-                                                                                len(self.actions))
+                                                                        self.objid,
+                                                                        "| status: scheduled" if self.scheduled else "",
+                                                                        len(self.actions))
+
 
 class BlockPar(Base):
     # TODO: this table data can be moved to Block?
@@ -210,9 +215,9 @@ class Projects(Base):
 
     def __str__(self):
         return "#%3d pi:%s #abstract: %s #url: %s" % (self.id,
-                                                         self.pi,
-                                                         self.abstract,
-                                                         self.url)
+                                                      self.pi,
+                                                      self.abstract,
+                                                      self.url)
 
 
 class Program(Base):
@@ -236,25 +241,26 @@ class Program(Base):
 
     def __str__(self):
         return "#%d :%s [obsblock: %i|blockpar: %i | target: %i]" % (self.id,
-                                                                             self.pid,
-                                                                             self.obsblock_id,
-                                                                             self.blockpar_id,
-                                                                             self.tid)
+                                                                     self.pid,
+                                                                     self.obsblock_id,
+                                                                     self.blockpar_id,
+                                                                     self.tid)
 
     def chimeraProgram(self):
         cp = CProgram()
 
         project = Session().query(Projects).filter(Projects.id == self.pid).first()
-        cp.pi       = project.pi
-        cp.name     = project.pid
-        cp.tid      = self.tid
+        cp.pi = project.pi
+        cp.name = project.pid
+        cp.tid = self.tid
         cp.priority = self.priority
-        cp.createdAt= self.createdAt
+        cp.createdAt = self.createdAt
         cp.finished = self.finished
-        cp.startAt  = self.slewAt
-        cp.validFor = -1.0 
+        cp.startAt = self.slewAt
+        cp.validFor = -1.0
 
         return cp
+
 
 class ObservingLog(Base):
     __tablename__ = "observinglog"
@@ -265,7 +271,8 @@ class ObservingLog(Base):
     action = Column(String(length=65))
 
     def __str__(self):
-        return '%s Action: %s' % ( self.time, self.action)
+        return '%s Action: %s' % (self.time, self.action)
+
 
 class Targets(Base):
     __tablename__ = "targets"
@@ -299,35 +306,34 @@ class Targets(Base):
             ah -= 24.
         self.targetAH = ah
 
-class Action(Base):
 
-    id         = Column(Integer, primary_key=True)
+class Action(Base):
+    id = Column(Integer, primary_key=True)
     block_id = Column(Integer, ForeignKey("obsblock.id"))
     action_type = Column('type', String(100))
 
-
     __tablename__ = "action"
     __mapper_args__ = {'polymorphic_on': action_type}
+
 
 class AutoFocus(Action):
     __tablename__ = "action_focus"
     __mapper_args__ = {'polymorphic_identity': 'AutoFocus'}
 
-    id     = Column(Integer, ForeignKey('action.id'), primary_key=True)
-    start   = Column(Integer, default=0)
-    end     = Column(Integer, default=1)
-    step    = Column(Integer, default=1)
-    filter  = Column(String(length=65), default=None)
+    id = Column(Integer, ForeignKey('action.id'), primary_key=True)
+    start = Column(Integer, default=0)
+    end = Column(Integer, default=1)
+    step = Column(Integer, default=1)
+    filter = Column(String(length=65), default=None)
     exptime = Column(Float, default=1.0)
     binning = Column(String(length=65), default=None)
-    window  = Column(String(length=65), default=None)
+    window = Column(String(length=65), default=None)
 
-    def __str__ (self):
+    def __str__(self):
         return "autofocus: start=%d end=%d step=%d exptime=%d" % (self.start, self.end, self.step, self.exptime)
 
     @staticmethod
     def chimeraAction(self):
-
         chim_act = CAutoFocus()
         chim_act.start = self.start
         chim_act.end = self.end
@@ -339,18 +345,18 @@ class AutoFocus(Action):
 
         return chim_act
 
+
 class AutoFlat(Action):
     __tablename__ = "action_flat"
     __mapper_args__ = {'polymorphic_identity': 'AutoFlats'}
 
-    id     = Column(Integer, ForeignKey('action.id'), primary_key=True)
-    filter  = Column(String(length=65), default=None)
-    frames     = Column(Integer, default=1)
+    id = Column(Integer, ForeignKey('action.id'), primary_key=True)
+    filter = Column(String(length=65), default=None)
+    frames = Column(Integer, default=1)
     binning = Column(String(length=3), default=None)
 
     @staticmethod
     def chimeraAction(self):
-
         ca = CAutoFlat()
         ca.filter = self.filter
         ca.frames = self.frames
@@ -358,15 +364,16 @@ class AutoFlat(Action):
 
         return ca
 
+
 class PointVerify(Action):
     __tablename__ = "action_pv"
     __mapper_args__ = {'polymorphic_identity': 'PointVerify'}
 
-    id     = Column(Integer, ForeignKey('action.id'), primary_key=True)
-    here   = Column(Boolean, default=None)
+    id = Column(Integer, ForeignKey('action.id'), primary_key=True)
+    here = Column(Boolean, default=None)
     choose = Column(Boolean, default=None)
 
-    def __str__ (self):
+    def __str__(self):
         if self.choose is True:
             return "pointing verification: system defined field"
         elif self.here is True:
@@ -382,16 +389,17 @@ class PointVerify(Action):
 
         return ca
 
+
 class Point(Action):
     __tablename__ = "action_point"
     __mapper_args__ = {'polymorphic_identity': 'Point'}
 
-    id          = Column(Integer, ForeignKey('action.id'), primary_key=True)
+    id = Column(Integer, ForeignKey('action.id'), primary_key=True)
     targetRaDec = Column(PickleType, default=None)
     targetAltAz = Column(PickleType, default=None)
-    offsetNS = Column(PickleType, default=None) # offset North (>0)/South (<0)
-    offsetEW = Column(PickleType, default=None) # offset West (>0)/East (<0)
-    targetName  = Column(String(length=65), default=None)
+    offsetNS = Column(PickleType, default=None)  # offset North (>0)/South (<0)
+    offsetEW = Column(PickleType, default=None)  # offset West (>0)/East (<0)
+    targetName = Column(String(length=65), default=None)
 
     @staticmethod
     def chimeraAction(self):
@@ -412,7 +420,7 @@ class Point(Action):
 
         return ca
 
-    def __str__ (self):
+    def __str__(self):
         offsetNS_str = '' if self.offsetNS is None else ' north %s' % self.offsetNS \
             if self.offsetNS > 0 else ' south %s' % self.offsetNS
 
@@ -438,44 +446,44 @@ class Expose(Action):
     __tablename__ = "action_expose"
     __mapper_args__ = {'polymorphic_identity': 'Expose'}
 
-    id         = Column(Integer, ForeignKey('action.id'), primary_key=True)
-    filter     = Column(String(length=65), default=None)
-    frames     = Column(Integer, default=1)
+    id = Column(Integer, ForeignKey('action.id'), primary_key=True)
+    filter = Column(String(length=65), default=None)
+    frames = Column(Integer, default=1)
 
-    exptime    = Column(Integer, default=5)
+    exptime = Column(Integer, default=5)
 
     binning = Column(String(length=3), default=None)
-    window     = Column(String(length=65), default=None)
+    window = Column(String(length=65), default=None)
 
-    shutter    = Column(String(length=65), default="OPEN")
+    shutter = Column(String(length=65), default="OPEN")
 
     wait_dome = Column(Boolean, default=True)
 
-    imageType  = Column(String(length=10), default="")
-    filename   = Column(String(length=65), default="$DATE-$TIME")
+    imageType = Column(String(length=10), default="")
+    filename = Column(String(length=65), default="$DATE-$TIME")
     objectName = Column(String(length=65), default="")
 
     compress_format = Column(String(length=10), default="NO")
 
-    def __str__ (self):
+    def __str__(self):
         return "expose: exptime=%d frames=%d type=%s" % (self.exptime, self.frames, self.imageType)
 
     @staticmethod
     def chimeraAction(self):
         ca = CExpose()
 
-        ca.filter      = self.filter
-        ca.frames      = self.frames
-        ca.exptime     = self.exptime
-        ca.binning     = self.binning
-        ca.window      = self.window
-        ca.shutter     = self.shutter
-        ca.imageType   = self.imageType
-        ca.filename    = self.filename
-        ca.objectName  = self.objectName
-        ca.wait_dome   = self.wait_dome
+        ca.filter = self.filter
+        ca.frames = self.frames
+        ca.exptime = self.exptime
+        ca.binning = self.binning
+        ca.window = self.window
+        ca.shutter = self.shutter
+        ca.imageType = self.imageType
+        ca.filename = self.filename
+        ca.objectName = self.objectName
+        ca.wait_dome = self.wait_dome
         ca.compress_format = self.compress_format
         return ca
 
-metaData.create_all(engine)
 
+metaData.create_all(engine)
