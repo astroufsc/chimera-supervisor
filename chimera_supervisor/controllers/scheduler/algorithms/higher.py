@@ -27,17 +27,23 @@ class Higher(BaseScheduleAlgorith):
         pool_size = 1
         max_sched_blocks = -1
         # TODO: move this to the db!
-        # if 'config' in kwargs:
-        #     config = kwargs['config']
-        #     if 'pool_size' in config:
-        #         pool_size = config['pool_size']
-        #
-        #     if 'slotLen' in config:
-        #         slotLen = config['slotLen']
-        #
-        #
-        #     if 'max_sched_blocks' in config:
-        #         max_sched_blocks = config['max_sched_blocks']
+        if 'config' in kwargs:
+            config = kwargs['config']
+            if 'pool_size' in config:
+                pool_size = config['pool_size']
+
+            if 'slotLen' in config:
+                slotLen = config['slotLen']
+
+            if 'max_sched_blocks' in config:
+                max_sched_blocks = config['max_sched_blocks']
+
+            # This config option enables Higher to choose only targets with RA > LST.
+            # This avoids targets on the "meridian cross" zone.
+            if 'past_meridian_only' in config:
+                past_meridian_only = config['past_meridian_only']
+            else:
+                past_meridian_only = False
 
         nightstart = kwargs['obsStart']
         nightend   = kwargs['obsEnd']
@@ -56,13 +62,6 @@ class Higher(BaseScheduleAlgorith):
         obsSlots['end'] += slotLen/60./60/24.
         obsSlots['slotid'] = np.arange(len(obsSlots))
         obsSlots['blockid'] = np.zeros(len(obsSlots))-1
-
-        '''
-        obsTargets = np.array([],dtype=[('obsblock',ObsBlock),
-                                        ('targets',Targets),
-                                        ('blockid',np.int)])'''
-
-        #obsBlocks = np.zeros(len(obsSlots))-1
 
         # For each slot select the higher in the sky...
 
@@ -91,10 +90,6 @@ class Higher(BaseScheduleAlgorith):
                 blockid = target[0].id
                 radecPos = np.append(radecPos,itr)
 
-        '''
-        radecArray = np.array([Position.fromRaDec(target[2].targetRa,
-                                                 target[2].targetDec) for target in targets])'''
-
         mask = np.ones(len(radecArray), dtype=bool)
         nblocks_scheduled = 0
 
@@ -117,7 +112,7 @@ class Higher(BaseScheduleAlgorith):
                 moonBrightness = site.moonphase(dateTime)*100.
 
                 if (
-                    (not (moonPar['minmoonBright'].max() < moonBrightness < moonPar['maxmoonBright'].min())) and
+                    (not (moonPar['minmoonBright'].max() <= moonBrightness <= moonPar['maxmoonBright'].min())) and
                         (moonPos.alt > 0.)
                     ):
                     log.warning('Slot[%03i]: Moon brightness (%5.1f%%) out of range (%5.1f%% -> %5.1f%%). \
@@ -149,27 +144,15 @@ class Higher(BaseScheduleAlgorith):
                             float(site.raDecToAltAz(radecArray[index],lst+time_offset.R).alt),
                             radecArray[index].angsep(moonRaDec),
                             moonPar['minmoonDist'][index],
-                            ((moonPar['minmoonBright'][index] < moonBrightness < moonPar['maxmoonBright'][index])
-                             or (moonPos.alt < 0.))
+                            (((moonPar['minmoonBright'][index] <= moonBrightness <= moonPar['maxmoonBright'][index])
+                             or (moonPos.alt < 0.)) and (lst > radecArray[index].ra.R if past_meridian_only else True))
                         )
                     except Exception, e:
                         log.exception(e)
 
-                # for item in items:
-                #     pool.apply_async(worker, (item,))
-                #
-                # pool.close()
-                # pool.join()
                 pool = Pool(pool_size)
 
                 for i in range(len(radecArray)):
-                    # if i % 100 == 0:
-                    #     log.debug('%i/%i'%(i,len(radecArray)))
-                    #
-                    # targetPar[i] = ( float(site.raDecToAltAz(radecArray[i],lst).alt),
-                    #                  radecArray[i].angsep(moonRaDec),
-                    #                  targets[i][1].minmoonDist,
-                    #                  targets[i][1].minmoonBright < moonBrightness < targets[i][1].maxmoonBright )
                     pool.apply_async(worker,(i,))
 
                 log.debug('Starting pool')
@@ -181,7 +164,6 @@ class Higher(BaseScheduleAlgorith):
                 moonMask = np.bitwise_and(targetPar['moonD'] > targetPar['minmoonD'],targetPar['mask_moonBright'])
 
                 # guarantee it is a copy not a reference...
-                # tmp_Mask = np.bitwise_and(moonMask)
                 mapping = np.arange(len(mask))[moonMask]
                 tmp_radecArray = np.array(radecArray[moonMask], copy=True)
                 tmp_radecPos = np.array(radecPos[moonMask], copy=True)
@@ -190,9 +172,7 @@ class Higher(BaseScheduleAlgorith):
                     log.warning('Slot[%03i]: Could not find suitable target'%(itr+1))
                     continue
 
-                #sitelat = np.sum(np.array([float(tt) / 60.**i for i,tt in enumerate(str(site['latitude']).split(':'))]))
                 alt = targetPar['altitude'][moonMask]
-
                 stg = alt.argmax()
                 start_alt = targetPar['start_altitude'][moonMask][stg]
                 end_alt = targetPar['end_altitude'][moonMask][stg]
@@ -210,37 +190,6 @@ class Higher(BaseScheduleAlgorith):
                                                      targets[:][radecPos[stg]][1].maxairmass))
                     continue
 
-                # Now, this one makes sense to iterate over.. But, a target
-                # that is too close to the moon now, may not be in the
-                # future, so, need to keep it in the list. That's why we
-                # use temporary arrays...
-                # s_target = targets[:][tmp_radecPos[stg]]
-
-                # while ( (tmp_radecArray[stg].angsep(moonRaDec) < s_target[1].minmoonDist)  ):
-                #     if len(tmp_Mask) == 0:
-                #         break
-                #     msg = '''Target %s %s cannot be observed due to moon restrictions (d = %.2f < %.2f). Moon @ %s (Phase: %.2f)'''
-                #     log.warning(msg%(s_target[0],
-                #                      s_target[2],
-                #                      tmp_radecArray[stg].angsep(moonRaDec),
-                #                      s_target[1].minmoonDist,
-                #                      moonRaDec,
-                #                      moonBrightness))
-                #     tmp_Mask[stg] = False
-                #     tmp_radecArray = tmp_radecArray[tmp_Mask]
-                #     tmp_radecPos = tmp_radecPos[tmp_Mask]
-                #     alt = alt[tmp_Mask]
-                #     stg = alt.argmax()
-                #     tmp_Mask = tmp_Mask[tmp_Mask]
-                #     # Check airmass
-                #     airmass = 1./np.cos(np.pi/2.-alt[stg]*np.pi/180.)
-                #     if airmass > targets[:][radecPos[stg]][1].maxairmass:
-                #         log.info('New object too low in the sky, (Alt.=%6.2f) airmass = %5.2f (max = %5.2f)...'%(alt[stg],airmass,targets[:][radecPos[stg]][1].maxairmass))
-                #
-                #         tmp_Mask = [] # empty tmp mask. This is the highest! No sense going on...
-                #         break
-                #     s_target = targets[:][tmp_radecPos[stg]]
-
                 s_target = targets[tmp_radecPos[stg]]
 
                 log.info('Slot[%03i] @%.3f: %s %s (Alt.=%6.2f, airmass=%5.2f (max=%5.2f))' % (itr+1,
@@ -250,7 +199,6 @@ class Higher(BaseScheduleAlgorith):
                                                                                               start_alt,
                                                                                               airmass,
                                                                                               s_target[1].maxairmass))
-
                 mask[mapping[stg]] = False
                 radecArray = radecArray[mask]
                 radecPos = radecPos[mask]
@@ -258,7 +206,7 @@ class Higher(BaseScheduleAlgorith):
                 mask = mask[mask]
                 obsSlots['blockid'][itr] = s_target[0].id
                 nblocks_scheduled += 1
-                if max_sched_blocks > 0 and nblocks_scheduled >= max_sched_blocks:
+                if 0 < max_sched_blocks <= nblocks_scheduled:
                     log.info('Maximum number of scheduled blocks (%i) reached. Stopping.' % max_sched_blocks)
                     break
 
@@ -273,21 +221,6 @@ class Higher(BaseScheduleAlgorith):
 
                 if len(mask) == 0:
                     break
-
-                '''
-                if not targets[stg][0].blockid in obsTargets['blockid']:
-                    #log.debug('#%s %i %i %f: lst = %f | ra = %f | scheduled = %i'%(s_target[0].pid,stg,targets[:][stg][0].blockid,obsSlots['start'][itr],lst,s_target[1].targetRa,targets[:][stg][0].scheduled))
-                    log.info('Slot[%03i]: %s'%(itr+1,s_target[2]))
-
-                    #obsTargets = np.append( obsTargets, np.array((s_target[0],s_target[1],targets[stg][0].blockid),dtype=[('obsblock',ObsBlock),('targets',Targets),('blockid',np.int)]))
-
-                    #self.addObservation(s_target[0],obsSlots['start'][itr])
-                    targets[stg][0].scheduled = True
-
-                else:
-                    log.debug('#Block already scheduled#%s %i %i %f: lst = %f | ra = %f | scheduled = %i'%(s_target[0].pid,stg,targets[stg][0].blockid,obsSlots['start'][itr],lst,s_target[1].targetRa,targets[stg][0].scheduled))
-                '''
-            #targets = targets.filter(ObsBlock.scheduled == False)
             else:
                 log.warning('Observing slot[%i]@%.4f is already filled with block id %i...'%(itr,
                                                                                              obsSlots['start'][itr],
@@ -301,10 +234,6 @@ class Higher(BaseScheduleAlgorith):
         dt = np.array([ np.abs(time - program[0].slewAt) for program in programs])
         iprog = np.argmin(dt)
         return programs[iprog]
-        # lst = Higher.site.LST(datetimeFromJD(time+2400000.5)).H
-        # ah = np.array([ np.abs(lst - program[3].targetRa) for program in programs])
-        # iprog = np.argmin(ah)
-        # return programs[iprog]
 
     @staticmethod
     def observed(time, program, site = None, soft = False):
