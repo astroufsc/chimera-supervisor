@@ -52,7 +52,7 @@ class TimeHandler(CheckHandler):
         ut = site.ut()
         reftime = None
         sunset = site.sunset(ut.date())
-        sunrise = site.sunrise(ut.date())
+        sunrise = site.sunrise(ut.date()) if datetime.datetime.now().hour < 12 else site.sunrise(ut.date() + datetime.timedelta(days=1))
 
         if abs(check.mode) == 1 or check.mode == 0:
             reftime = sunset
