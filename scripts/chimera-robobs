@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+import matplotlib
+
+matplotlib.use("Agg")
 
 ################################################################################
 
@@ -11,26 +14,21 @@ import os
 import time
 import datetime as dt
 import shutil
-import re
 import yaml
 import numpy as np
-import ConfigParser
 from astropy.table import Table
 from sqlalchemy import (or_, and_, desc, asc)
 import inspect
 
 from chimera.core.cli import ChimeraCLI, action, ParameterType
 from chimera.core.site import datetimeFromJD
-from chimera.core.callback import callback
-from chimera.core.exceptions import printException, ObjectNotFoundException
-from chimera.util.output import blue, green, red
+from chimera.util.output import blue, green, red, yellow
 from chimera.util.position import Position
 from chimera.util.coord import Coord
 
 from chimera_supervisor.core.constants import DEFAULT_PROGRAM_DATABASE, DEFAULT_ROBOBS_DATABASE
-from chimera_supervisor.controllers.scheduler.model import Session as RSession
-from chimera_supervisor.controllers.scheduler.model import (Projects, BlockPar, ObsBlock,
-                                                            Targets, ObservingLog,
+from chimera_supervisor.controllers.scheduler.model import Session as RSession, Action
+from chimera_supervisor.controllers.scheduler.model import (Projects, BlockPar, ObsBlock, Targets, ObservingLog,
                                                             Program, AutoFocus, AutoFlat, PointVerify, Point, Expose)
 from chimera_supervisor.controllers.scheduler import algorithms
 from matplotlib.dates import DateFormatter
@@ -113,6 +111,16 @@ class RobObs(ChimeraCLI):
                                 help="Date (yyyy/mm/dd-hh:mm:ss.s) of the end of the observations to be scheduled.",
                                 metavar="dend",
                                 helpGroup="SCHEDULER"))
+        self.addParameters(dict(name="LSTstart", long="lststart", type=float,
+                                help="Overwrite LST target selection cut. Does not change start/end of night only the"
+                                     " target selection cuts. Usefull to extend cut on thin projects.",
+                                metavar="LSTstart",
+                                helpGroup="SCHEDULER"))
+        self.addParameters(dict(name="LSTend", long="lstend", type=float,
+                                help="Overwrite LST target selection cut. Does not change start/end of night only the"
+                                     " target selection cuts. Usefull to extend cut on thin projects.",
+                                metavar="LSTend",
+                                helpGroup="SCHEDULER"))
         self.addParameters(dict(name="simulation",
                                 long="simulation",
                                 type=ParameterType.BOOLEAN,
@@ -189,13 +197,18 @@ class RobObs(ChimeraCLI):
             self.out('--Found %i blocks.' % len(config['observing_blocks']))
             for observing_block in config['observing_blocks']:
                 b_pid = session.query(Projects).filter(Projects.pid == config['project']['pid']).first().id
-                block = session.query(BlockPar).filter(BlockPar.name == config['observing_blocks'][observing_block]['name']).first()
+                block = session.query(BlockPar).filter(
+                    BlockPar.name == config['observing_blocks'][observing_block]['name']).first()
                 if block is None:
-                    self.out('---Adding block %s/%s to the database...' % (config['project']['pid'], config['observing_blocks'][observing_block]['name']))
+                    self.out('---Adding block %s/%s to the database...' % (
+                        config['project']['pid'], config['observing_blocks'][observing_block]['name']))
+                    print("pid" + str(b_pid))
                     block = BlockPar(pid=b_pid, **config['observing_blocks'][observing_block])
                     session.add(block)
                 else:
-                    self.out('---Updating block %s/%s...' % (config['project']['pid'], config['observing_blocks'][observing_block]['name']))
+                    print("pid" + str(b_pid))
+                    self.out('---Updating block %s/%s...' % (
+                        config['project']['pid'], config['observing_blocks'][observing_block]['name']))
                     for par in config['observing_blocks'][observing_block]:
                         setattr(block, par, config['observing_blocks'][observing_block][par])
             session.commit()
@@ -230,16 +243,28 @@ class RobObs(ChimeraCLI):
         obsblock = session.query(ObsBlock).filter(ObsBlock.pid == b_pid)
         for block in obsblock:
             self.out('--Deleting observing block %s.%s.%s ...' % (block.pid,
-                                                                  block.blockid,
+                                                                  block.id,
                                                                   block.objid))
             for blk_action in block.actions:
                 session.delete(blk_action)
             session.delete(block)
 
-        blocktargets = session.query(BlockPar).filter(BlockPar.pid == b_pid)
-        for block in blocktargets:
-            self.out('--Deleting block %s...' % block.id)
-            session.delete(block)
+        blockpars = session.query(BlockPar).filter(BlockPar.pid == b_pid)
+        for blockpar in blockpars:
+            self.out('--- Deleting blocks of %s...' % blockpar.id)
+            blocks = session.query(ObsBlock).filter(ObsBlock.bparid == blockpar.id)
+            for block in blocks:
+                self.out('--- Deleting actions of %s...' % blockpar.id)
+                actions = session.query(Action).filter(Action.block_id == block.id)
+                for action in actions:
+                    session.delete(action)
+                self.out('--- Deleting programs of %s...' % blockpar.id)
+                programs = session.query(Program).filter(Program.obsblock_id == block.id)
+                for program in programs:
+                    session.delete(program)
+                self.out('-- Deleting block %s...' % blockpar.id)
+                session.delete(block)
+            session.delete(blockpar)
 
         projects = session.query(Projects).filter(Projects.pid == opt.pid)
         for project in projects:
@@ -330,6 +355,7 @@ class RobObs(ChimeraCLI):
 
         session = RSession()
 
+        update = False
         for i in range(len(targets)):
 
             p = None
@@ -350,13 +376,21 @@ class RobObs(ChimeraCLI):
                     if pname in givedEntries.keys():
                         tpar[addpar[pname]] = targets[givedEntries[pname]][i]
 
-                target = Targets(**tpar)
-
-                self.out('--Adding %s...' % (target.name))
-
-                session.add(target)
+                t = session.query(Targets).filter(Targets.name == tpar["name"])
+                if t.count() > 0:
+                    self.out('-- Updating %s...' % tpar["name"])
+                    t.update(tpar)
+                    update = True
+                else:
+                    self.out('-- Adding %s...' % tpar["name"])
+                    target = Targets(**tpar)
+                    session.add(target)
 
                 session.commit()
+
+        if update:
+            self.out(red("WARNING: ") + yellow("One or more targets were updated."
+                                               "The update is only effective after updating the corresponding Observing Blocks."))
 
         self.out('-Done')
         return 0
@@ -408,7 +442,6 @@ class RobObs(ChimeraCLI):
             self.err(red('*') + 'Input not given. Use \'-f\'...')
             return -1
 
-
         if not opt.block_name:
             self.err(red('*') + 'Block name not given. Use \'--block-name\' ')
             return -1
@@ -435,13 +468,12 @@ class RobObs(ChimeraCLI):
         if target.count() == 0:
             self.exit("No target defined for specified block")  # TODO: better exit if target doesn't exists
         else:
-            target = target[0]
+            target = target.first()
 
         project = session.query(Projects).filter(Projects.pid == opt.pid).first()
         bparid = session.query(BlockPar).filter(BlockPar.name == opt.block_name, BlockPar.pid == project.id).first().id
 
-        b_pid = session.query(Projects).filter(Projects.pid == opt.pid).first().id
-        addblock = session.query(ObsBlock).filter(ObsBlock.objid == target.id).filter(ObsBlock.pid == b_pid)
+        addblock = session.query(ObsBlock).filter(ObsBlock.objid == target.id).filter(ObsBlock.pid == project.id)
 
         observed = False
         if addblock.count() > 0:
@@ -451,8 +483,16 @@ class RobObs(ChimeraCLI):
                     self.out(red('!!') + 'Block %i already observed. Leaving as is.' % bl.id)
                     observed = True
                     break
-                for blk_action in bl.actions:
-                    session.delete(blk_action)
+
+                self.out('--- Deleting actions of %s...' % bl.id)
+                actions = session.query(Action).filter(Action.block_id == bl.id)
+                for action in actions:
+                    session.delete(action)
+                self.out('--- Deleting programs of %s...' % bl.id)
+                programs = session.query(Program).filter(Program.obsblock_id == bl.id)
+                for program in programs:
+                    session.delete(program)
+
                 session.delete(bl)
                 session.commit()
 
@@ -488,6 +528,7 @@ class RobObs(ChimeraCLI):
                             if type(value) == str:
                                 fmt = target.__dict__
                                 fmt.update(addblock.__dict__)
+                                fmt.update(project.__dict__)
                                 value = value.format(**fmt)
 
                             try:
@@ -508,66 +549,69 @@ class RobObs(ChimeraCLI):
         for actconfig in config['pos-actions']:
             act = actionDict[actconfig['action']]()
 
-        if actconfig['action'] == 'point':
-            if 'ra' in actconfig.keys() and 'dec' in actconfig.keys():
-                epoch = 'J2000' if 'epoch' not in actconfig.keys() else actconfig['epoch']
-                position = Position.fromRaDec(actconfig['ra'], actconfig['dec'], epoch)
-                self.out('Coords: %s' % position)
-                act.targetRaDec = position
-            elif 'alt' in actconfig.keys() and 'az' in actconfig.keys():
-                position = Position.fromAltAz(actconfig['alt'], actconfig['az'])
-                self.out('Coords: %s' % position)
-                act.targetAltAz = position
-            elif 'name' in actconfig:
-                self.out('Target name: %s' % actconfig['name'])
-                act.targetName = actconfig['name']
-            elif 'offset' not in actconfig:
-                self.out('Pointing to target again!')
-                act.targetRaDec = Position.fromRaDec(target[0].targetRa, target[0].targetDec, 'J2000')
+            if actconfig['action'] == 'point':
+                if 'ra' in actconfig.keys() and 'dec' in actconfig.keys():
+                    epoch = 'J2000' if 'epoch' not in actconfig.keys() else actconfig['epoch']
+                    position = Position.fromRaDec(actconfig['ra'], actconfig['dec'], epoch)
+                    self.out('Coords: %s' % position)
+                    act.targetRaDec = position
+                elif 'alt' in actconfig.keys() and 'az' in actconfig.keys():
+                    position = Position.fromAltAz(actconfig['alt'], actconfig['az'])
+                    self.out('Coords: %s' % position)
+                    act.targetAltAz = position
+                elif 'name' in actconfig:
+                    self.out('Target name: %s' % actconfig['name'])
+                    act.targetName = actconfig['name']
+                elif 'offset' not in actconfig:
+                    self.out('Pointing to target again!')
+                    act.targetRaDec = Position.fromRaDec(target.targetRa, target.targetDec, 'J2000')
 
-            if 'offset' in actconfig:
-                if 'north' in actconfig['offset']:
-                    offset = _validateOffset(actconfig['offset']['north'])
-                    self.out('Offset north: %s' % offset)
-                    act.offsetNS = offset
-                elif 'south' in actconfig['offset']:
-                    offset = _validateOffset(actconfig['offset']['south'])
-                    self.out('Offset south: %s' % offset)
-                    act.offsetNS = Coord.fromAS(-offset.AS)
+                if 'offset' in actconfig:
+                    if 'north' in actconfig['offset']:
+                        offset = _validateOffset(actconfig['offset']['north'])
+                        self.out('Offset north: %s' % offset)
+                        act.offsetNS = offset
+                    elif 'south' in actconfig['offset']:
+                        offset = _validateOffset(actconfig['offset']['south'])
+                        self.out('Offset south: %s' % offset)
+                        act.offsetNS = Coord.fromAS(-offset.AS)
 
-                if 'west' in actconfig['offset']:
-                    offset = _validateOffset(actconfig['offset']['west'])
-                    self.out('Offset west: %s' % offset)
-                    act.offsetEW = offset
-                elif 'east' in actconfig['offset']:
-                    offset = _validateOffset(actconfig['offset']['east'])
-                    self.out('Offset east: %s' % offset)
-                    act.offsetEW = Coord.fromAS(-offset.AS)
+                    if 'west' in actconfig['offset']:
+                        offset = _validateOffset(actconfig['offset']['west'])
+                        self.out('Offset west: %s' % offset)
+                        act.offsetEW = offset
+                    elif 'east' in actconfig['offset']:
+                        offset = _validateOffset(actconfig['offset']['east'])
+                        self.out('Offset east: %s' % offset)
+                        act.offsetEW = Coord.fromAS(-offset.AS)
 
-        else:
-            for key in actconfig.keys():
-                if hasattr(act, key) and key != 'action':
-                    value = actconfig[key]
-                    if type(value) == str:
-                        fmt = target.__dict__
-                        fmt.update(addblock.__dict__)
-                        value = value.format(**fmt)
+            else:
+                for key in actconfig.keys():
+                    if hasattr(act, key) and key != 'action':
+                        value = actconfig[key]
+                        if type(value) == str:
+                            fmt = target.__dict__
+                            fmt.update(addblock.__dict__)
+                            fmt.update(project.__dict__)
+                            value = value.format(**fmt)
 
-                    try:
-                        setattr(act, key, value)
-                    except:
-                        self.err('Could not set attribute %s = %s on action %s' % (key,
-                                                                                   actconfig[key],
-                                                                                   actconfig['action']))
+                        try:
+                            setattr(act, key, value)
+                        except:
+                            self.err('Could not set attribute %s = %s on action %s' % (key,
+                                                                                       actconfig[key],
+                                                                                       actconfig['action']))
 
-                if act.__tablename__ == 'action_expose':
-                    block_length += (actconfig['exptime'] + 12.) * actconfig[
-                        'frames']  # FIXME: read-out-time hard coded
-                elif act.__tablename__ == 'action_focus' and act.step > 0:
-                    block_length += 600.  # FIXME: focus hard coded
+                    if act.__tablename__ == 'action_expose' and key == 'action':
+                        print actconfig['exptime'], actconfig['frames']
+                        block_length += (actconfig['exptime'] + 12.) * actconfig[
+                            'frames']  # FIXME: read-out-time hard coded
+                    elif act.__tablename__ == 'action_focus' and act.step > 0 and key == 'action':
+                        block_length += 600.  # FIXME: focus hard coded
 
-        addblock.actions.append(act)
+            addblock.actions.append(act)
 
+        print ("Block length: ", block_length)
         addblock.length = block_length
         session.add(addblock)
 
@@ -682,31 +726,22 @@ class RobObs(ChimeraCLI):
             help="Process entries on Observing Log database and generate charts and graphs with observing information. User can specify start/end dates, only start or end works as well.",
             actionGroup="")
     def makeObservingLog(self, opt):
-        import matplotlib
-        # matplotlib.use('Agg')
         import matplotlib.pyplot as py
         fig = py.figure(1, figsize=(14, 8))
+        fig.add_subplot(1, 1, 1)
+        fig.clf()
 
         session = RSession()
 
         self.mktimes(opt)
 
-        query = session.query(ObservingLog).filter(ObservingLog.time > self.obsStart - dt.timedelta(hours=2),
-                                                   ObservingLog.time <= self.obsEnd + dt.timedelta(hours=2))
-
-        tid = np.array([], dtype=np.int)
-
-        for q in query:
-            tid = np.append(tid, q.tid)
-
-        if opt.filename is not None:
-            try:
-                with open(opt.filename, 'r') as fp:
-                    color_config = yaml.load(fp)
-            except IOError, e:
-                self.err('Could not find pid-color code file. Using same color for all projects.')
-                color_config = None
-        tid = np.unique(tid)
+        # if opt.filename is not None:
+        #     try:
+        #         with open(opt.filename, 'r') as fp:
+        #             color_config = yaml.load(fp)
+        #     except IOError, e:
+        #         self.err('Could not find pid-color code file. Using same color for all projects.')
+        #         color_config = None
 
         alt_min = 15
         alt_max = 90
@@ -718,69 +753,86 @@ class RobObs(ChimeraCLI):
         py.plot([self.obsStart - dt.timedelta(hours=2), self.obsEnd + dt.timedelta(hours=2)],
                 [alt_min + 10, alt_min + 10], 'r--')
 
-        for id in tid:
-            target = session.query(Targets).filter(Targets.id == id).first()
+        # Moon
+        time = [t.astype(dt.datetime) for t in
+                np.arange(self.obsStart, self.obsEnd, (self.obsEnd - self.obsStart) / 100)]
+        py.gca().plot(time, [self.site.moonpos(t).alt.R * 180 / np.pi for t in time], '--', color='black', label='Moon')
+
+        if opt.simulation:
+            obs_start = 'Acquisition Start'
+            obs_end = 'Acquisition End'
+        else:
+            obs_start = 'Program Started'
+            obs_end = 'Program End'
+
+        start = []
+        end = []
+        radec = []
+        names = []
+        colors = {}
+
+        query = session.query(ObservingLog).filter(ObservingLog.time > self.obsStart - dt.timedelta(hours=2),
+                                                   ObservingLog.time <= self.obsEnd + dt.timedelta(hours=2))
+
+        print("count", query.count())
+
+        for q in query:
+            target = session.query(Targets).filter(Targets.id == q.tid).first()
             if target is None:
                 continue
-            time, alt = self.altitude(ra=target.targetRa,
-                                      dec=target.targetDec,
-                                      start=self.obsStart - dt.timedelta(hours=5),
-                                      end=self.obsEnd + dt.timedelta(hours=2),
-                                      tdelta=1. / 30.)
 
-            line, = py.gca().plot(time, alt, '-', label=target.name)
+            if obs_start in q.action:
+                radec.append([target.targetRa, target.targetDec])
+                names.append(target.name)
+                start.append(q.time)
+            elif obs_end in q.action:
+                end.append(q.time)
 
-            targetObs = query.filter(ObservingLog.tid == id)
-            program = session.query(Program)
+        if len(start) != len(end):
+            self.err('Start/end of observations of target does not match')
 
-            start = []
-            end = []
-            if opt.simulation:
-                obs_start = 'Acquisition Start'
-                obs_end = 'Acquisition End'
+        ylim = py.ylim()
+        for i in range(len(start)):
+            print '@@> ', start[i], end[i], names[i]
+            time, alt = self.altitude(ra=radec[i][0],
+                                      dec=radec[i][1],
+                                      start=start[i],
+                                      end=end[i],
+                                      tdelta=1. / 60.)
+
+            if names[i] in colors:
+                color = colors[names[i]]
+                label = None
             else:
-                obs_start = 'Program Started'
-                obs_end = 'Program End'
+                color = None
+                label = names[i]
 
-            for obs in targetObs:
+            line, = py.gca().plot(time, alt, '-', label=label, color=color)
 
-                if obs_start in obs.action:
-                    start.append(obs.time)
-                elif obs_end in obs.action:
-                    end.append(obs.time)
-            if len(start) != len(end):
-                self.err('Start/end of observations of target does not match')
-                continue
+            # if color_config is not None and program.pid in color_config:
+            #     color = color_config[program.pid]['color']
+            #     alpha = color_config[program.pid]['alpha']
+            # else:
+            if color is None:
+                color = line.get_color()
+                colors[names[i]] = color
+            alpha = 0.5
 
-            ylim = py.ylim()
-            for i in range(len(start)):
-                time, alt = self.altitude(ra=target.targetRa,
-                                          dec=target.targetDec,
-                                          start=start[i],
-                                          end=end[i],
-                                          tdelta=1. / 60.)
+            py.fill_between(time, alt, ylim[0], facecolor=color, alpha=alpha)
 
-                if color_config is not None and program.pid in color_config:
-                    color = color_config[program.pid]['color']
-                    alpha = color_config[program.pid]['alpha']
-                else:
-                    color = line.get_color()
-                    alpha = 0.5
-
-                py.fill_between(time, alt, ylim[0], facecolor=color, alpha=alpha)
-            py.ylim(ylim)
+        py.ylim(ylim)
 
         py.xlim(self.obsStart - dt.timedelta(hours=2), self.obsEnd + dt.timedelta(hours=2))
         py.ylim(alt_min, alt_max)
         py.xticks(rotation=70)
 
-        # py.show()
         py.gcf().axes[0].xaxis.set_major_formatter(DateFormatter('%H:%M'))
         py.title("Observation plan as of %s" % dt.datetime.utcnow().isoformat().split('.')[0])
         py.grid()
         py.ylabel("Altitude (deg)")
         py.gca().legend(loc='upper center', ncol=5, fancybox=True, framealpha=0.5)
-        py.savefig('foo.png')
+        out_fname = opt.filename if opt.filename else "obsplan.png"
+        py.savefig(out_fname)
 
     ############################################################################
 
@@ -893,8 +945,10 @@ class RobObs(ChimeraCLI):
 
         obsStart = self.obsStart
         obsEnd = self.obsEnd
-        lststart = self.lststart - 2.
-        lstend = self.lstend + 2.
+        lststart = opt.LSTstart if opt.LSTstart is not None else self.lststart - Coord.fromH(2.)
+        lstend = opt.LSTend if opt.LSTend is not None else self.lstend + Coord.fromH(2.)
+        if lstend > Coord.fromH(24.):
+            lstend -= Coord.fromH(24.)
         remoteManager = self.robobs.getManager()
         site = remoteManager.getProxy(remoteManager.getResourcesByClass("Site")[0])
 
@@ -954,6 +1008,16 @@ class RobObs(ChimeraCLI):
         for i, sa_type in enumerate(uSAL):
             self.out('--SA Type[%i] = %i' % (i + 1, sa_type))
 
+        # TODO: REMOVE THIS #
+        pgrconfig = {}
+        if opt.PIDCONFIG is not None:
+            with open(opt.PIDCONFIG, 'r') as stream:
+                try:
+                    pgrconfig = yaml.load(stream)
+                except yaml.YAMLError as exc:
+                    self.exit(exc)
+        # TODO: REMOVE THIS #
+
         for sAL in uSAL:
 
             nquery = tList.filter(BlockPar.schedalgorith == sAL)
@@ -964,7 +1028,8 @@ class RobObs(ChimeraCLI):
                                        obsStart=obsStart,
                                        obsEnd=obsEnd,
                                        query=nquery,
-                                       site=site)
+                                       site=site,
+                                       config=pgrconfig)  # TODO: REMOVE THIS.
 
             # First schedule all
             for bid in obsTargets:
@@ -1066,11 +1131,11 @@ class RobObs(ChimeraCLI):
             _idle = slewAt - otime
             stime = otime
             if _idle > 1e-5:
-                msg += '[info: Program slew %.3fm in the future. waiting...]' % ((_idle) * 24. * 60.)
+                msg += '[info: Program slew %.3fm in the future. waiting...]' % (_idle * 24. * 60.)
                 idle += _idle
                 stime += _idle
             elif _idle < -1e-5:
-                msg += '[info: Program slew %.3fm in the past. Slewing now...]' % ((_idle) * 24. * 60.)
+                msg += '[info: Program slew %.3fm in the past. Slewing now...]' % (_idle * 24. * 60.)
 
             _idle = _idle if _idle > 0 else 0.
             slewtime = 0.
@@ -1141,7 +1206,7 @@ class RobObs(ChimeraCLI):
         remoteManager = self.robobs.getManager()
         site = remoteManager.getProxy(remoteManager.getResourcesByClass("Site")[0])
 
-        #TODO: remove tz info from the datetimes below!!!
+        # TODO: remove tz info from the datetimes below!!!
         self.obsStart = site.sunset_twilight_end().replace(tzinfo=None)
         self.obsEnd = site.sunrise_twilight_begin(self.obsStart).replace(tzinfo=None)
 
@@ -1185,8 +1250,9 @@ class RobObs(ChimeraCLI):
     ############################################################################
 
     def checkQueue(self, pid):
-        '''Check if projet was already processed...
-            '''
+        """
+        Check if project was already processed...
+        """
 
         session = RSession()
 
@@ -1221,8 +1287,6 @@ class RobObs(ChimeraCLI):
             project = session.query(Projects).filter(Projects.id == obsblock.pid).first()
             self.out('\t @%.3f - %s' % (obstime - 2400000.5, target))
             program = Program(tid=obsblock.objid,
-                              # name=target.name,
-                              pi='',
                               priority=project.priority,
                               slewAt=obstime - 2400000.5,
                               pid=obsblock.pid,
