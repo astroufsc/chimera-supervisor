@@ -1,4 +1,5 @@
 import datetime
+import numpy as np
 
 def requires(instrument):
     """Simple dependecy injection mechanism. See ProgramExecutor"""
@@ -227,21 +228,27 @@ class WindSpeedHandler(CheckHandler):
 
         manager = WindSpeedHandler.manager
 
-        windspeed = None
+        wind_speed_dict = {}
         for i in range(len(weatherstations)):
             try:
                 s = weatherstations[i].wind_speed()
                 if datetime.datetime.utcnow() - s.time < datetime.timedelta(minutes=manager["max_mins"]):
-                    windspeed = s
-                    break
+                    wind_speed_dict['%s' % weatherstations[i]] = s
             except:
                 pass
-        if windspeed is None:
+
+        msg = ''
+        if len(wind_speed_dict) == 0:
             return check.mode == 0, "No valid weather station data available!"
+        else:
+            for key in wind_speed_dict.keys():
+                msg += "%s: %s" % (key, wind_speed_dict[key])
+
+        windspeed = wind_speed_dict[wind_speed_dict.keys()[0]]
 
         if check.mode == 0:
             ret = check.windspeed < windspeed.value
-            msg = "Wind speed OK (%.2f/%.2f)"%(windspeed.value,
+            msg += "Wind speed OK (%.2f/%.2f)"%(windspeed.value,
                                                check.windspeed) if not ret \
                 else "Wind speed higher than specified threshold (%.2f/%.2f)"%(windspeed.value,
                                                check.windspeed)
@@ -249,7 +256,7 @@ class WindSpeedHandler(CheckHandler):
 
         elif check.mode == 1: # True if value is lower for more than the specified number of hours
             ret = check.windspeed > windspeed.value
-            msg = "Nothing to do. Windspeed higher than threshold (%.2f/%.2f)."%(windspeed.value,check.windspeed) if not ret \
+            msg += "Nothing to do. Windspeed higher than threshold (%.2f/%.2f)."%(windspeed.value,check.windspeed) if not ret \
                 else "Windspeed lower than threshold (%.2f/%.2f)."%(windspeed.value,check.windspeed)
 
             if not ret:
