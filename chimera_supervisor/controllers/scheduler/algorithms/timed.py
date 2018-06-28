@@ -55,8 +55,10 @@ class Timed(BaseScheduleAlgorith):
                     log.warning('Request for observation after the end of the night.')
 
                 print('Requesting observation @ %.3f' % obs_times)
-                timed = TimedDB(pid = config['pid'],
-                                execute_at=obs_times)
+                # FIXME: move out from config execute_at and config['pid']
+                pid = session.query(Projects).filter(Projects.pid == config['pid']).first().id
+                timed = TimedDB(pid = pid, execute_at=obs_times)
+                # FIXME: end
                 session.add(timed)
             return programs
         finally:
