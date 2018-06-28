@@ -95,8 +95,7 @@ class Higher(BaseScheduleAlgorith):
         radecArray = np.array([Position.fromRaDec(target[2].targetRa,
                                                  target[2].targetDec) for target in targets])'''
 
-        mask = np.zeros(len(radecArray)) == 0
-        #radecPos = np.arange(len(radecArray))
+        mask = np.ones(len(radecArray), dtype=bool)
         nblocks_scheduled = 0
 
         for itr in range(len(obsSlots)):

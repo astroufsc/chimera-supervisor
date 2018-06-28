@@ -33,7 +33,6 @@ class Timed(BaseScheduleAlgorith):
 
         for i in range(len(config['times'])):
             execute_at = nightstart-2400000.5+(config['times'][i]/24.)
-            print execute_at
             config['times'][i] = execute_at
 
         slotLen = 1800.
@@ -135,7 +134,7 @@ class Timed(BaseScheduleAlgorith):
             timed_observations = session.query(TimedDB).filter(TimedDB.pid == pid,
                                                                TimedDB.finished == True)
 
-            if (timed_observations is not None):
+            if timed_observations is not None:
                 for timed in timed_observations:
                     timed.finished = False
 

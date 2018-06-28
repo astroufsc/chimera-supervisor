@@ -18,7 +18,7 @@ class Recurrent(BaseScheduleAlgorith):
         return 3
 
     @staticmethod
-    def process(*args,**kwargs):
+    def process(*args, **kwargs):
         log = logging.getLogger('sched-algorith(recurrent.process)')
         log.addHandler(fileHandler)
 
@@ -27,10 +27,6 @@ class Recurrent(BaseScheduleAlgorith):
             raise RecurrentAlgorithException("No configuration file provided or no recurrence time defined.")
 
         config = kwargs['config']
-
-        nightstart = kwargs['obsStart']
-        nightend   = kwargs['obsEnd']
-
         recurrence_time = config['recurrence']
 
         slotLen = 1800.
@@ -60,13 +56,12 @@ class Recurrent(BaseScheduleAlgorith):
         new_ntargets = len(kwargs['query'][:])
         log.debug('Filtering %i of %i targets' % (new_ntargets, ntargets))
         # Select targets with the Higher algorithm
-        programs = Higher.process(slotLen=slotLen,*args,**kwargs)
+        programs = Higher.process(slotLen=slotLen, *args, **kwargs)
 
         return programs
 
-
     @staticmethod
-    def next(time,programs):
+    def next(time, programs):
         '''
         Select the program to observe with this scheduling algorithm.
 
@@ -75,7 +70,7 @@ class Recurrent(BaseScheduleAlgorith):
         :return:
         '''
 
-        return Higher.next(time,programs)
+        return Higher.next(time, programs)
 
     @staticmethod
     def add(block):
@@ -85,8 +80,8 @@ class Recurrent(BaseScheduleAlgorith):
 
         # Check if this is already in the database
         recurrent_block = session.query(RecurrentDB).filter(RecurrentDB.pid == obsblock.pid,
-                                                          RecurrentDB.blockid == obsblock.id,
-                                                          RecurrentDB.tid == obsblock.objid).first()
+                                                            RecurrentDB.blockid == obsblock.id,
+                                                            RecurrentDB.tid == obsblock.objid).first()
 
         if recurrent_block is None:
             # Not in the database, add it
@@ -100,7 +95,7 @@ class Recurrent(BaseScheduleAlgorith):
         session.close()
 
     @staticmethod
-    def observed(time, program, site = None, soft = False):
+    def observed(time, program, site=None, soft=False):
         '''
         Process program as observed.
 
@@ -110,7 +105,7 @@ class Recurrent(BaseScheduleAlgorith):
         log = logging.getLogger('sched-algorith(recurrent.observed)')
         log.addHandler(fileHandler)
 
-        obstime = datetimeFromJD(time+2400000.5) #site.ut().replace(tzinfo=None) # get time and function entry
+        obstime = datetimeFromJD(time + 2400000.5)  # site.ut().replace(tzinfo=None) # get time and function entry
 
         session = Session()
         prog = session.merge(program[0])
@@ -133,7 +128,6 @@ class Recurrent(BaseScheduleAlgorith):
                                                                 RecurrentDB.tid == obsblock.objid).first()
             if reccurent_block is None:
                 log.debug('Block not in recurrent database. Adding block...')
-                print obsblock.blockid
                 reccurent_block = RecurrentDB()
                 reccurent_block.pid = obsblock.pid
                 reccurent_block.blockid = obsblock.id,
@@ -152,9 +146,7 @@ class Recurrent(BaseScheduleAlgorith):
                     log.debug('%i visits completed.' % reccurent_block.visits)
         else:
             log.debug('Running in soft mode...')
-            block = session.merge(program[2])
-            block.observed = True
+            obsblock.observed = True
 
         session.commit()
         session.close()
-

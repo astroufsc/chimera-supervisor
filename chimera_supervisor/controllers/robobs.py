@@ -155,10 +155,8 @@ class RobObs(ChimeraObject):
             self._debuglog.debug('Program %s started' % program)
             site = self.getSite()
 
-            log = ObservingLog(time=datetimeFromJD(site.MJD()+2400000.5,),
-                                 tid=program.tid,
-                                 name=program.name,
-                                 action='ROBOBS: Program Started')
+            log = ObservingLog(time=datetimeFromJD(site.MJD() + 2400000.5), tid=program.tid,
+                               action='ROBOBS: Program Started')
             rsession.add(log)
         finally:
             session.commit()
@@ -197,19 +195,13 @@ class RobObs(ChimeraObject):
                 rsession.commit()
 
                 rsession.commit()
-                
+
                 self._current_program = None
             elif status != SchedulerStatus.OK:
                 self.stop()
         finally:
             session.commit()
             rsession.commit()
-        # self._current_program_condition.acquire()
-        # for i in range(10):
-        #     self._debuglog.debug('Sleeping %2i ...' % i)
-        #     time.sleep(1)
-        # self._current_program_condition.notifyAll()
-        # self._current_program_condition.release()
 
     def _watchActionBegin(self,action, message):
         session = model.Session()
@@ -236,33 +228,11 @@ class RobObs(ChimeraObject):
             if self.rob_state == RobState.ON:
                 self._debuglog.debug("Scheduler went from BUSY to OFF. Needs resheduling...")
 
-                # if self._current_program is not None:
-                #     self._debuglog.warning("Wait for last program to be updated")
-                #     self._current_program_condition.acquire()
-                #     self._current_program_condition.wait(30) # wait 10s most!
-                #     self._current_program_condition.release()
                 session = RSession()
                 csession = model.Session()
 
-                # cprog = model.Program(  name =  "CALIB",
-                #                         pi = "Tiago Ribeiro",
-                #                         priority = 1 )
-                # cprog.actions.append(model.Expose(frames = 3,
-                #                                   exptime = 10,
-                #                                   imageType = "DARK",
-                #                                   shutter = "CLOSE",
-                #                                   filename = "dark-$DATE-$TIME"))
-                # cprog.actions.append(model.Expose(frames = 1,
-                #                                   exptime = 0,
-                #                                   imageType = "DARK",
-                #                                   shutter = "CLOSE",
-                #                                   filename = "bias-$DATE-$TIME"))
-                #
-                # csession.add(cprog)
-                # self._current_program = cprog
-                # self._debuglog.debug("Added: %s" % cprog)
                 program_info = self.reshedule()
-                #
+
                 if program_info is not None:
                     program = session.merge(program_info[0])
                     obs_block = session.merge(program_info[2])
@@ -276,37 +246,30 @@ class RobObs(ChimeraObject):
                     csession.commit()
                     program.finished = True
                     session.commit()
-                    # sched = self.getSched()
                     self._current_program = program_info
                     self._no_program_on_queue = False
-                    # sched.start()
-                    # self._current_program_condition.release()
                     self._debuglog.debug("Done")
                 elif self._no_program_on_queue:
                     self._debuglog.warning("No program on robobs queue, waiting for 5 min.")
                     time.sleep(300)
                 else:
-                    self._debuglog.warning("No program on robobs queue. Sending telescope to park position.")
-                    # ToDo: Run an action from the database to send telescope to park position.
-                    cprog = model.Program(  name =  "SAFETY",
-                                            pi = "ROBOBS",
-                                            priority = 1 )
-                    to_park_position =  model.Point()
-                    to_park_position.targetAltAz = Position.fromAltAz(Coord.fromD(88.),
-                                                               Coord.fromD(89.))
-                    cprog.actions.append(to_park_position)
-
-                    csession.add(cprog)
+                    self._debuglog.warning("No program on robobs queue")
                     self._no_program_on_queue = True
+                    # ToDo: Run an action from the database to send telescope to park position.
+                    # cprog = model.Program(  name =  "SAFETY",
+                    #                        pi = "ROBOBS",
+                    #                        priority = 1 )
+                    # to_park_position =  model.Point()
+                    # to_park_position.targetAltAz = Position.fromAltAz(Coord.fromD(88.),
+                    #                                           Coord.fromD(89.))
+                    # cprog.actions.append(to_park_position)
+
+                    # csession.add(cprog)
                     # self.stop()
 
                 csession.commit()
                 session.commit()
-                # for i in range(10):
-                #     self.log.debug('Waiting %i/10' % i)
-                #     time.sleep(1.0)
-                # sched = self.getSched()
-                # sched.start()
+
                 self.wake()
                 self._debuglog.debug("Done")
             else:
@@ -357,11 +320,8 @@ class RobObs(ChimeraObject):
 
         for p in plist[1:]:
 
-            # Get program and program duration (lenght)
-
+            # Get program and program duration (length)
             aprogram,aplen = self.getProgram(nowmjd,p)
-
-            # aprogram = session.merge(aprogram)
 
             if aprogram is None:
                 continue
@@ -382,13 +342,7 @@ class RobObs(ChimeraObject):
                 self._debuglog.info('Selected program cannot be observed. Skipping...')
                 continue
 
-
-
             self._debuglog.info('Current program length: %.2f m. Slew@: %.3f'%(aplen/60.,aprogram[0].slewAt))
-            #return program
-            #if aplen < 0 and program:
-            #	log.debug('Using normal program (aplen < 0)...')
-            #	return program
 
             # If alternate program fits will send it instead
 
@@ -399,27 +353,9 @@ class RobObs(ChimeraObject):
 
             self._debuglog.info('Wait time is: %.2f m'%(awaittime/60.))
 
-            # if awaittime+aplen < waittime+plen:
-            # if awaittime < waittime:
-            # #if aprogram.slewAt+aplen/86.4e3 < program.slewAt:
-            #     self._debuglog.info('Choose program with priority %i'%p)
-            #     # put program back with same priority
-            #     #self.rq.put((prt,program))
-            #     # return alternate program
-            #     session.commit()
-            #     return aprogram
-            checktime = nowmjd if nowmjd > program[0].slewAt else program[0].slewAt
-            # if not self.checkConditions(program,checktime):
-            #     program,plen,waittime = aprogram,aplen,awaittime
-
             if awaittime+aplen < waittime:
                 self._debuglog.info('Program with priority %i fits in this slot. Selecting it instead.'%p)
                 program, plen, waittime = aprogram, aplen, awaittime
-                # put program back with same priority
-                #self.rq.put((prt,program))
-                # return alternate program
-                # session.commit()
-                # return aprogram
             elif awaittime < waittime and self.checkConditions(program,nowmjd+(awaittime+aplen)/86400.,plen):
                 self._debuglog.info('Program with higher priority can be executed after current program. '
                                     'Selecting program with priority %i.' % p)
@@ -433,12 +369,6 @@ class RobObs(ChimeraObject):
             if not self.checkConditions(program,nowmjd+(awaittime+aplen)/86400.):
                 self._debuglog.debug('Program with higher priority cannot be observed afterwards (%.2f)' %
                                      (nowmjd+(awaittime+aplen)/86400.))
-            #program,plen,priority = aprogram,aplen,p
-            #if not program.slewAt :
-            #    # Program should be done right now if possible!
-            #    # TEST "if possible"
-            #    log.debug('Choose program with priority %i'%p)
-            #    return program
 
         if program is None:
             # if project cannot be executed return nothing.
@@ -537,11 +467,10 @@ class RobObs(ChimeraObject):
         '''
 
         site = self.getSite()
+
         # 1) check airmass
         session = RSession()
-        # program = session.merge(prg)
         target = session.merge(program[3])
-        # obsblock = session.merge(program[2])
         blockpar = session.merge(program[1])
 
         raDec = Position.fromRaDec(target.targetRa,target.targetDec)
@@ -549,12 +478,11 @@ class RobObs(ChimeraObject):
         dateTime = datetimeFromJD(time+2400000.5)
         lst = site.LST_inRads(dateTime) # in radians
 
-        alt = float(site.raDecToAltAz(raDec,lst).alt)
-        airmass = 1./np.cos(np.pi/2.-alt*np.pi/180.)
+        alt = float(site.raDecToAltAz(raDec, lst).alt)
+        airmass = 1. / np.cos(np.pi / 2. - alt * np.pi / 180.)
 
         if blockpar.minairmass < airmass < blockpar.maxairmass:
             self._debuglog.debug('\tairmass:%.3f'%airmass)
-            pass
         else:
             self._debuglog.warning('Target %s out of airmass range @ %.3f... (%f < %f < %f)'%(target,time,
                                                                                        blockpar.minairmass,
@@ -563,59 +491,53 @@ class RobObs(ChimeraObject):
             return False
 
         if program_length > 0.:
-            dateTime = datetimeFromJD((time+program_length/86.4e3)+2400000.5).replace(tzinfo=None)
+            dateTime = datetimeFromJD((time + program_length / 86.4e3) + 2400000.5).replace(tzinfo=None)
             lst = site.LST_inRads(dateTime)  # in radians
             night_end = site.sunrise_twilight_begin(time).replace(tzinfo=None)
             if dateTime > night_end:
-                self._debuglog.warning('Block finish @ %s. Night end is @ %s!' % (dateTime,
-                                                                                  night_end))
+                self._debuglog.warning('Block finish @ %s. Night end is @ %s!' % (dateTime, night_end))
                 return False
 
             alt = float(site.raDecToAltAz(raDec, lst).alt)
-            airmass = 1./np.cos(np.pi/2.-alt*np.pi/180.)
+            airmass = 1. / np.cos(np.pi / 2. - alt * np.pi / 180.)
 
             if blockpar.minairmass < airmass < blockpar.maxairmass:
-                self._debuglog.debug('\tairmass:%.3f'%airmass)
-                pass
+                self._debuglog.debug('\tairmass:%.3f' % airmass)
             else:
-                self._debuglog.warning('Target %s out of airmass range @ %.3f... (%f < %f < %f)'%(target,time,
-                                                                                           blockpar.minairmass,
-                                                                                           airmass,
-                                                                                           blockpar.maxairmass))
+                self._debuglog.warning('Target %s out of airmass range @ %.3f... (%f < %f < %f)' % (
+                    target, time, blockpar.minairmass, airmass, blockpar.maxairmass))
                 # return False
                 # FIXME
-                pass
 
         # 2) check moon Brightness
         moonPos = site.moonpos(dateTime)
         moonBrightness = site.moonphase(dateTime)*100.
-        if blockpar.minmoonBright < moonBrightness < blockpar.maxmoonBright:
+        if blockpar.minmoonBright <= moonBrightness <= blockpar.maxmoonBright:
             self._debuglog.debug('\tMoon brightness:%.2f'%moonBrightness)
             pass
         elif moonPos.alt < 0.:
             self._debuglog.warning('\tMoon bellow horizon. Moon brightness:%.2f'%moonBrightness)
         else:
-            self._debuglog.warning('Wrong Moon Brightness... (%f < %f < %f)'%(blockpar.minmoonBright,
-                                                                   moonBrightness,
-                                                                   blockpar.maxmoonBright))
+            self._debuglog.warning('Wrong Moon Brightness... (%f < %f < %f)' % (blockpar.minmoonBright,
+                                                                                moonBrightness,
+                                                                                blockpar.maxmoonBright))
             return False
 
         # 3) check moon distance
         moonRaDec = site.altAzToRaDec(moonPos,lst)
-
         moonDist = raDec.angsep(moonRaDec)
 
         if moonDist < blockpar.minmoonDist:
-            self._debuglog.warning('Object to close to the moon... '
-                                   'Target@ %s / Moon@ %s (moonDist = %f | minmoonDist = %f)'%(raDec,
-                                                                                               moonRaDec,
-                                                                                               moonDist,
-                                                                                               blockpar.minmoonDist))
+            self._debuglog.warning('Object too close to the moon... '
+                                   'Target@ %s / Moon@ %s (moonDist = %f | minmoonDist = %f)' % (raDec,
+                                                                                                 moonRaDec,
+                                                                                                 moonDist,
+                                                                                                 blockpar.minmoonDist))
             return False
         else:
-            self._debuglog.debug('\tMoon distance:%.3f'%moonDist)
-        # 4) check seeing
+            self._debuglog.debug('\tMoon distance:%.3f' % moonDist)
 
+        # 4) check seeing
         if self["seeingmonitors"] is not None:
 
             seeing = self.getSM().seeing()
@@ -628,6 +550,7 @@ class RobObs(ChimeraObject):
                 self._debuglog.warning('No seeing measurement...')
             else:
                 self._debuglog.debug('Seeing %.3f'%seeing)
+
         # 5) check cloud cover
         if self["cloudsensors"] is not None:
             pass

@@ -26,7 +26,7 @@ if os.path.exists(DEFAULT_ROBOBS_DATABASE_CONFIG):
         try:
             database_config = yaml.load(stream)
             if "mysql" in database_config['database']:
-                print 'mysql'
+                # print 'mysql'
                 engine = create_engine(database_config['database'], echo=False, poolclass=NullPool) #, pool_pre_ping=True) #, pool_size = 20, max_overflow = 0)
 
                 # To Avoid MySQL-specific rounding problems #
