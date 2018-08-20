@@ -776,6 +776,7 @@ class RobObs(ChimeraCLI):
         end = []
         radec = []
         names = []
+        aborted = []
         colors = {}
 
         query = session.query(ObservingLog).filter(ObservingLog.time > self.obsStart - dt.timedelta(hours=2),
@@ -783,23 +784,31 @@ class RobObs(ChimeraCLI):
 
         print("count", query.count())
 
+        aux_start = False
         for q in query:
             target = session.query(Targets).filter(Targets.id == q.tid).first()
             if target is None:
                 continue
 
             if obs_start in q.action:
+
                 radec.append([target.targetRa, target.targetDec])
                 names.append(target.name)
                 start.append(q.time)
+
+                # If program was aborted, there is no END for the last program, so make it equal to START
+                if aux_start:
+                    end.append(start[-1])
+                    aborted.append(True)
+                else:
+                    aborted.append(False)
+                aux_start = True
             elif obs_end in q.action:
+                aux_start = False
                 end.append(q.time)
 
-        if len(start) != len(end):
-            self.err('Start/end of observations of target does not match')
-
         ylim = py.ylim()
-        for i in range(len(start)):
+        for i in range(min(len(start), len(end))):
             print '@@> ', start[i], end[i], names[i]
             time, alt = self.altitude(ra=radec[i][0],
                                       dec=radec[i][1],
@@ -814,7 +823,15 @@ class RobObs(ChimeraCLI):
                 color = None
                 label = names[i]
 
-            line, = py.gca().plot(time, alt, '-', label=label, color=color)
+            if not aborted[i]:
+                line, = py.gca().plot(time, alt, '-', label=label, color=color)
+            else:
+                line, = py.gca().plot(time, alt, '--', label=label, color=color)
+
+            # Plot moon distance
+            for t in time[::60]:
+                print('moonpos', self.site.moonpos(t).angsep(Position.fromRaDec(radec[i][0], radec[i][1])).D)
+                py.text(t, alt[time == t], '%.0f' % self.site.moonpos(t).angsep(Position.fromRaDec(radec[i][0], radec[i][1])).D)
 
             # if color_config is not None and program.pid in color_config:
             #     color = color_config[program.pid]['color']
@@ -834,7 +851,8 @@ class RobObs(ChimeraCLI):
         py.xticks(rotation=70)
 
         py.gcf().axes[0].xaxis.set_major_formatter(DateFormatter('%H:%M'))
-        py.title("Observation plan as of %s" % dt.datetime.utcnow().isoformat().split('.')[0])
+        aux = "Simulation" if opt.simulation else "Observed"
+        py.title("%s plan for %s as of %s" % (aux, str(self.obsStart.date()), dt.datetime.utcnow().isoformat().split('.')[0]))
         py.grid()
         py.ylabel("Altitude (deg)")
         py.gca().legend(loc='upper center', ncol=5, fancybox=True, framealpha=0.5)
