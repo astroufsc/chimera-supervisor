@@ -1000,7 +1000,7 @@ class RobObs(ChimeraCLI):
                                                                       ObsBlock.completed == False,
                                                                       or_(and_(Targets.targetRa > lststart,
                                                                                Targets.targetRa < 24.),
-                                                                          and_(Targets.targetRa > 0.,
+                                                                          and_(Targets.targetRa >= 0.,
                                                                                Targets.targetRa < lstend))).join(
                 Targets).order_by(desc(Targets.targetAH))
 
